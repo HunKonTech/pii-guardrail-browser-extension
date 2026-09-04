@@ -16,6 +16,7 @@ export async function handleKnownBlockers(page: Page, provider: ProviderName): P
     const button = page.getByRole('button', { name: label }).first();
     if (await button.isVisible().catch(() => false)) {
       await button.click({ timeout: 3_000 });
+      await button.waitFor({ state: 'hidden', timeout: 3_000 });
     }
   }
 }

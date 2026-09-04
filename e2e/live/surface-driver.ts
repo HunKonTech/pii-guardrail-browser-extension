@@ -171,12 +171,15 @@ export class LiveSurfaceDriver {
       throw new LiveE2EError('incompatible', 'spa-navigation', 'A visible New chat control was not found');
     }
     await control.click();
-    const composer = await this.findComposer();
-    const oldMessageVisible = await this.page.getByText(previousSubmittedText, { exact: true }).isVisible().catch(() => false);
-    if (oldMessageVisible) {
+    const transcriptCleared = await this.page
+      .getByText(previousSubmittedText, { exact: true })
+      .waitFor({ state: 'hidden', timeout: 10_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!transcriptCleared) {
       throw new LiveE2EError('incompatible', 'spa-navigation', 'The previous transcript remained after New chat navigation');
     }
-    return composer;
+    return this.findComposer();
   }
 }
 

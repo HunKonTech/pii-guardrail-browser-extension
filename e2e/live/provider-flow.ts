@@ -172,17 +172,32 @@ async function runChatGptDeepFlow(
   const page = driver.page;
   const patternResponse = patternFlow.response;
   if (!patternResponse) throw new LiveE2EError('harness-error', 'reveal', 'Pattern response was not retained');
-  const banner = page.locator('.pg-deanon-host');
+  const banner = page.locator('.pg-deanon-host').last();
   await banner.waitFor({ state: 'attached', timeout: 20_000 }).catch(() => {
     throw new LiveE2EError('incompatible', 'reveal', 'The response restoration surface did not appear');
   });
-  await clickExtensionShadowControl(page, '.pg-deanon-host', { id: 'pg-reveal-btn' }, 'reveal');
+  await clickExtensionShadowControl(
+    page,
+    '.pg-deanon-host',
+    { id: 'pg-reveal-btn', hostIndex: -1 },
+    'reveal',
+  );
   await page.getByText(patternFlow.testCase.rawValue, { exact: false }).first().waitFor({ state: 'visible', timeout: 5_000 });
 
-  await clickExtensionShadowControl(page, '.pg-deanon-host', { id: 'pg-copy-btn' }, 'copy');
+  await clickExtensionShadowControl(
+    page,
+    '.pg-deanon-host',
+    { id: 'pg-copy-btn', hostIndex: -1 },
+    'copy',
+  );
   await waitForClipboard(clipboard, patternFlow.testCase.rawValue, 'copy');
 
-  await clickExtensionShadowControl(page, '.pg-deanon-host', { id: 'pg-reveal-btn' }, 'reveal');
+  await clickExtensionShadowControl(
+    page,
+    '.pg-deanon-host',
+    { id: 'pg-reveal-btn', hostIndex: -1 },
+    'reveal',
+  );
   await patternResponse.selectText();
   await page.keyboard.press(copyShortcut());
   await page.locator('#pg-clipboard-toast-host').waitFor({ state: 'attached', timeout: 5_000 }).catch(() => {

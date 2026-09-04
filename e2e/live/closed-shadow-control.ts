@@ -19,6 +19,7 @@ interface CdpNode {
 
 export interface ShadowControlTarget {
   id: string;
+  hostIndex?: number;
 }
 
 export async function clickExtensionShadowControl(
@@ -40,20 +41,28 @@ export async function clickExtensionShadowControl(
       nodeId: root.nodeId!,
       selector: hostSelector,
     })) as { nodeIds: number[] };
-    if (hostNodeIds.length !== 1) {
+    if (hostNodeIds.length === 0) {
       throw new LiveE2EError(
         'harness-error',
         phase,
-        hostNodeIds.length === 0
-          ? `Extension shadow host ${hostSelector} was not found`
-          : `Extension shadow host ${hostSelector} was ambiguous`,
+        `Extension shadow host ${hostSelector} was not found`,
       );
+    }
+    if (target.hostIndex === undefined && hostNodeIds.length !== 1) {
+      throw new LiveE2EError('harness-error', phase, `Extension shadow host ${hostSelector} was ambiguous`);
+    }
+    const requestedHostIndex = target.hostIndex ?? 0;
+    const hostIndex = requestedHostIndex < 0
+      ? hostNodeIds.length + requestedHostIndex
+      : requestedHostIndex;
+    if (hostIndex < 0 || hostIndex >= hostNodeIds.length) {
+      throw new LiveE2EError('harness-error', phase, `Extension shadow host ${hostSelector} was not found`);
     }
 
     // Describe only the allowlisted extension host. This pierces its closed
     // roots without exposing similarly named controls elsewhere on the page.
     const { node: hostTree } = (await client.send('DOM.describeNode', {
-      nodeId: hostNodeIds[0],
+      nodeId: hostNodeIds[hostIndex],
       depth: -1,
       pierce: true,
     })) as { node: CdpNode };
@@ -90,12 +99,12 @@ export async function clickExtensionShadowControl(
     const x = (quad[0] + quad[2] + quad[4] + quad[6]) / 4;
     const y = (quad[1] + quad[3] + quad[5] + quad[7]) / 4;
     const unobstructed = await page.evaluate(
-      ({ selector, x, y }) => {
-        const host = document.querySelector(selector);
+      ({ selector, index, x, y }) => {
+        const host = document.querySelectorAll(selector)[index];
         const hit = document.elementFromPoint(x, y);
         return Boolean(host && hit && (hit === host || host.contains(hit)));
       },
-      { selector: hostSelector, x, y },
+      { selector: hostSelector, index: hostIndex, x, y },
     );
     if (!unobstructed) {
       throw new LiveE2EError('harness-error', phase, 'Extension shadow control is covered');
