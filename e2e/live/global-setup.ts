@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { FullConfig } from '@playwright/test';
-import { PROVIDERS, type ProviderName } from './contracts';
+import { DEFAULT_PROVIDERS, type ProviderName } from './contracts';
 import { runPreflight } from './preflight';
 
 export interface LiveState {
@@ -11,7 +11,7 @@ export interface LiveState {
 }
 
 function selectedProviders(): ProviderName[] {
-  return (process.env.PG_LIVE_PROVIDERS ?? PROVIDERS.join(','))
+  return (process.env.PG_LIVE_PROVIDERS ?? DEFAULT_PROVIDERS.join(','))
     .split(',')
     .filter(Boolean) as ProviderName[];
 }

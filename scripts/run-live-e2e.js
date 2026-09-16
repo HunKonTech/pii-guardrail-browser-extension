@@ -2,13 +2,15 @@ const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 
 const PROVIDERS = new Set(['chatgpt', 'claude', 'gemini']);
+// Claude is only run on request: its signed-out surface sits behind a Cloudflare bot check.
+const DEFAULT_PROVIDERS = ['chatgpt', 'gemini'];
 
 function usage() {
   return [
     'Usage: npm run test:e2e:live -- [options]',
     '',
     'Options:',
-    '  --provider <name>       Run chatgpt, claude, or gemini (repeatable)',
+    '  --provider <name>       Run chatgpt, claude, or gemini (repeatable; default: chatgpt, gemini)',
     '  --headless              Diagnostic headless run (not authoritative)',
     '  --deep-diagnostics      Include page snapshots and sources in failure traces',
     '  --skip-build            Reuse dist/ (not authoritative)',
@@ -55,7 +57,7 @@ function main() {
     stdio: 'inherit',
     env: {
       ...process.env,
-      PG_LIVE_PROVIDERS: (options.providers.length ? options.providers : [...PROVIDERS]).join(','),
+      PG_LIVE_PROVIDERS: (options.providers.length ? options.providers : DEFAULT_PROVIDERS).join(','),
       PG_LIVE_HEADLESS: options.headless ? '1' : '0',
       PG_LIVE_DEEP_DIAGNOSTICS: options.deepDiagnostics ? '1' : '0',
       PG_LIVE_SKIP_BUILD: options.skipBuild ? '1' : '0',

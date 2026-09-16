@@ -13,7 +13,7 @@ Für einen maßgeblichen Lauf müssen die vorbereiteten BardsAI-Ressourcen unter
 
 ## Ausführung
 
-Der Standardbefehl öffnet sichtbare Chromium-Fenster und führt alle Anbieter sequenziell mit jeweils einem frischen temporären Profil aus:
+Der Standardbefehl öffnet sichtbare Chromium-Fenster und führt ChatGPT und Gemini sequenziell mit jeweils einem frischen temporären Profil aus. Claude ist vorerst nicht im Standardlauf, weil die abgemeldete Oberfläche hinter einer Cloudflare-Botprüfung liegt, die der automatisierte Browser nicht besteht; mit `--provider claude` lässt es sich weiterhin gezielt ausführen:
 
 ```bash
 npm run test:e2e:live

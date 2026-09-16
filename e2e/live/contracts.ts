@@ -1,4 +1,8 @@
 export const PROVIDERS = ['chatgpt', 'claude', 'gemini'] as const;
+// Claude is left out of the default run: its signed-out surface sits behind a
+// Cloudflare bot check that the automated browser cannot pass. Run it with
+// --provider claude.
+export const DEFAULT_PROVIDERS = ['chatgpt', 'gemini'] as const;
 
 export type ProviderName = (typeof PROVIDERS)[number];
 export type LiveStatus =
