@@ -68,6 +68,7 @@ class ProviderFlowPort implements CommonFlowPort {
   async pasteWithSystemClipboard(): Promise<void> {
     await this.timed('paste', async () => {
       if (!this.composer) throw new LiveE2EError('harness-error', 'paste', 'Composer was not initialized');
+      await this.driver.handleKnownBlockers();
       await this.clipboard.withText(this.testCase.prompt, async () => {
         await this.composer!.focus();
         await this.driver.page.keyboard.press(pasteShortcut());

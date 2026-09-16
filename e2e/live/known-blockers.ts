@@ -4,7 +4,8 @@ import type { ProviderName } from './contracts';
 const LABELS: Record<ProviderName, RegExp[]> = {
   chatgpt: [/^Accept all$/i, /^Stay logged out$/i, /^Okay, let(?:'|’)s go$/i],
   claude: [/^Accept all cookies$/i],
-  gemini: [/^I agree$/i, /^Got it$/i],
+  // Each run uses a throwaway profile, so accepting Google's cookie consent keeps nothing.
+  gemini: [/^I agree$/i, /^Got it$/i, /^Accept all$/i],
 };
 
 // Confirmations a provider asks for only after New chat is clicked. They are

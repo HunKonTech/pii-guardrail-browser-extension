@@ -123,6 +123,8 @@ export class LiveSurfaceDriver {
   }
 
   async submit(composer: Locator, replacement: string): Promise<void> {
+    // Consent dialogs can open after the composer was found, e.g. Google's while the review runs.
+    await handleKnownBlockers(this.page, this.provider);
     this.responseBaseline = await exactVisibleTextCount(this.page, replacement);
     await composer.focus();
     await this.page.keyboard.press('Enter');

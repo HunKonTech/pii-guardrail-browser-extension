@@ -8,7 +8,7 @@ describe('known live-surface blockers', () => {
       /^Okay, let(?:'|’)s go$/i,
     ]);
     expect(knownBlockerLabels('claude')).toEqual([/^Accept all cookies$/i]);
-    expect(knownBlockerLabels('gemini')).toEqual([/^I agree$/i, /^Got it$/i]);
+    expect(knownBlockerLabels('gemini')).toEqual([/^I agree$/i, /^Got it$/i, /^Accept all$/i]);
   });
 
   test('does not include generic continue or close controls', () => {
