@@ -18,10 +18,12 @@ export function patternTestCase(runId: string): LiveTestCase {
 }
 
 export function transformerTestCase(runId: string): LiveTestCase {
-  const rawValue = `Johanna Prüfling ${suffix(runId)}`;
+  // The run suffix stays outside the name: Local AI rightly leaves it unreplaced,
+  // and a reply echoing it would never match the bare placeholder.
+  const rawValue = 'Johanna Prüfling';
   return {
     rawValue,
-    prompt: `Reply with exactly this name and nothing else: ${rawValue}`,
+    prompt: `Live check ${suffix(runId)}. Reply with exactly this name and nothing else: ${rawValue}`,
     expectedReplacementType: 'PERSON',
   };
 }
