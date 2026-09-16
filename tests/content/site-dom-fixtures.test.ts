@@ -82,6 +82,16 @@ describe.each(FIXTURES)('$name captured markup', ({ file, adapter, composer }) =
     }
   });
 
+  it('tells the user’s own message apart from the reply', () => {
+    mount(file);
+
+    const userMessages = adapter().getUserMessageElements?.() ?? [];
+    expect(userMessages.length).toBeGreaterThan(0);
+    for (const message of userMessages) {
+      expect(message.textContent).toContain('A synthetic question.');
+    }
+  });
+
   it('reads the reply and not the composer, whatever the adapter does', () => {
     // The scan takes no selectors from the adapter, so this holds even for a
     // fixture whose composer selector has stopped matching.

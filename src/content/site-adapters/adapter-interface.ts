@@ -13,6 +13,12 @@ export interface SiteAdapter {
   getResponseElements(): HTMLElement[];
 
   /**
+   * Find the user's own messages currently in the DOM. They never get a
+   * reveal banner. Optional: the generic adapter can't know them.
+   */
+  getUserMessageElements?(): HTMLElement[];
+
+  /**
    * Insert text into the input element in a way that the site's framework
    * (React, ProseMirror, etc.) recognizes as user input.
    */

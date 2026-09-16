@@ -44,6 +44,8 @@ export interface AttachedBanner {
   readonly element: HTMLElement;
   /** Re-resolve and re-render the count. Cheap; safe to call often. */
   refresh(): void;
+  /** Hide any revealed originals and take the banner off the page. */
+  detach(): void;
 }
 
 /** Collect descendant `<input>` and `<textarea>` controls in document
@@ -151,6 +153,16 @@ export function attachDeAnonBanner(
   };
   renderCount();
 
+  const hideRevealed = (): void => {
+    overlayEl?.remove();
+    overlayEl = null;
+    restoreOriginalContent(hiddenElements, hiddenTextNodes);
+    hiddenElements = [];
+    hiddenTextNodes = [];
+    revealBtn.textContent = 'Reveal originals';
+    revealed = false;
+  };
+
   revealBtn.addEventListener('click', () => {
     if (!revealed) {
       // Resolved here, not at attach time: everything learned about the
@@ -162,16 +174,7 @@ export function attachDeAnonBanner(
       revealBtn.textContent = 'Hide originals';
       revealed = true;
     } else {
-      // Remove overlay, restore original
-      if (overlayEl) {
-        overlayEl.remove();
-        overlayEl = null;
-      }
-      restoreOriginalContent(hiddenElements, hiddenTextNodes);
-      hiddenElements = [];
-      hiddenTextNodes = [];
-      revealBtn.textContent = 'Reveal originals';
-      revealed = false;
+      hideRevealed();
       renderCount();
     }
   });
@@ -189,7 +192,13 @@ export function attachDeAnonBanner(
   // Insert banner before the response element
   responseElement.parentElement?.insertBefore(host, responseElement);
 
-  return { element: responseElement, refresh: renderCount };
+  const detach = (): void => {
+    if (revealed) hideRevealed();
+    host.remove();
+    delete responseElement.dataset.pgBanner;
+  };
+
+  return { element: responseElement, refresh: renderCount, detach };
 }
 
 function buildRevealLayer(

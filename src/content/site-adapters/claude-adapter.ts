@@ -25,6 +25,14 @@ export class ClaudeAdapter implements SiteAdapter {
     );
   }
 
+  getUserMessageElements(): HTMLElement[] {
+    return Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '[data-testid="user-message"], .font-user-message'
+      )
+    );
+  }
+
   insertText(element: HTMLElement, text: string): void {
     insertTextCompat(element, text);
   }
