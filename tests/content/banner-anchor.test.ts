@@ -127,6 +127,33 @@ describe('findLooseTokenAnchors', () => {
     expect(findLooseTokenAnchors(root, [], null, hasToken)).toEqual([]);
   });
 
+  it('leaves the user’s own messages alone', () => {
+    // Gemini puts each line of a message in its own block, so without this
+    // every line with a token got its own banner.
+    const root = mount(`
+      <div id="query">
+        <p>Mail [PERSON_1] today.</p>
+        <p>And [PERSON_1] again.</p>
+      </div>
+      <div>${'padding '.repeat(60)}</div>
+    `);
+    const userMessages = [root.querySelector('#query') as HTMLElement];
+
+    expect(findLooseTokenAnchors(root, [], null, hasToken, userMessages)).toEqual([]);
+  });
+
+  it('leaves page chrome alone', () => {
+    // A sidebar conversation title can contain a token. It's not a reply.
+    const root = mount(`
+      <nav><a><div>Sync with [PERSON_1]</div></a></nav>
+      <div role="navigation"><div>Sync with [PERSON_1]</div></div>
+      <aside><p>Sync with [PERSON_1]</p></aside>
+      <div>${'padding '.repeat(60)}</div>
+    `);
+
+    expect(findLooseTokenAnchors(root, [], null, hasToken)).toEqual([]);
+  });
+
   it('tolerates a missing root', () => {
     expect(findLooseTokenAnchors(null, [], null, hasToken)).toEqual([]);
   });

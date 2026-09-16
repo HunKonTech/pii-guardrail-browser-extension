@@ -24,6 +24,12 @@ export class GeminiAdapter implements SiteAdapter {
     );
   }
 
+  getUserMessageElements(): HTMLElement[] {
+    return Array.from(
+      document.querySelectorAll<HTMLElement>('user-query, .user-query-container')
+    );
+  }
+
   insertText(element: HTMLElement, text: string): void {
     insertTextCompat(element, text);
   }

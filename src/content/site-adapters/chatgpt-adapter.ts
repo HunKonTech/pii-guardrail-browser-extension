@@ -42,6 +42,9 @@ const INPUT_SELECTORS = [
 const RESPONSE_SELECTOR =
   '[data-message-role="assistant"], [data-message-author-role="assistant"]';
 
+const USER_MESSAGE_SELECTOR =
+  '[data-message-role="user"], [data-message-author-role="user"]';
+
 
 /**
  * Reject composer candidates the site itself treats as unusable. Mirrors
@@ -90,6 +93,12 @@ export class ChatGptAdapter implements SiteAdapter {
   getResponseElements(): HTMLElement[] {
     return Array.from(
       document.querySelectorAll<HTMLElement>(RESPONSE_SELECTOR)
+    );
+  }
+
+  getUserMessageElements(): HTMLElement[] {
+    return Array.from(
+      document.querySelectorAll<HTMLElement>(USER_MESSAGE_SELECTOR)
     );
   }
 

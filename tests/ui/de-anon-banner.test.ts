@@ -136,6 +136,28 @@ describe('attachDeAnonBanner', () => {
     expect(revealBtn.textContent).toBe('Reveal originals');
   });
 
+  it('detaches cleanly, even while revealed, and can attach again', () => {
+    // The fallback removes its banners once the adapter finds replies. A
+    // revealed one must not leave originals behind on the page.
+    const entityMap = new EntityMap({ '[PERSON_1]': 'Björn' });
+    const container = document.createElement('div');
+    const responseElement = document.createElement('p');
+    responseElement.textContent = 'Ask [PERSON_1] today.';
+    container.appendChild(responseElement);
+    document.body.appendChild(container);
+
+    const banner = attachDeAnonBanner(responseElement, resolverFor(entityMap));
+    const host = container.firstElementChild as HTMLElement;
+    (host.shadowRoot!.getElementById('pg-reveal-btn') as HTMLButtonElement).click();
+
+    banner!.detach();
+
+    expect(container.querySelector('.pg-deanon-host')).toBeNull();
+    expect(responseElement.textContent).toBe('Ask [PERSON_1] today.');
+    expect(responseElement.dataset.pgBanner).toBeUndefined();
+    expect(attachDeAnonBanner(responseElement, resolverFor(entityMap))).not.toBeNull();
+  });
+
   it('attaches and highlights mangled placeholders against their canonical source', () => {
     const entityMap = new EntityMap({ '[PERSON_1]': 'Björn' });
 

@@ -32,6 +32,17 @@ const BLOCK_TAGS = new Set([
 ]);
 
 /**
+ * Sidebars, headers and navigation. These are never replies, but a
+ * conversation title in the sidebar can contain a token. Standard tags and
+ * roles instead of site selectors, so this keeps working after a redesign.
+ */
+const PAGE_CHROME_SELECTOR = [
+  'nav', 'aside', 'header', 'footer',
+  '[role="navigation"]', '[role="complementary"]', '[role="banner"]',
+  '[role="contentinfo"]',
+].join(', ');
+
+/**
  * Share of the page's text above which an ancestor is too broad to annotate.
  *
  * Revealing replaces the subtree it annotates, so the real hazard is
@@ -88,12 +99,17 @@ export function blockAncestorFor(
  * Returns one element per region, outermost-wins so a reply containing three
  * tokens gets one banner rather than three. Elements already inside a matched
  * turn are skipped: that turn is the better anchor and the caller has it.
+ *
+ * Tokens in `excluded` (the user's own messages) and in sidebars, headers or
+ * navigation are skipped too. They are not replies, so a banner there is just
+ * noise.
  */
 export function findLooseTokenAnchors(
   root: HTMLElement | null,
   turns: readonly HTMLElement[],
   composer: HTMLElement | null,
   hasResolvableToken: (text: string) => boolean,
+  excluded: readonly HTMLElement[] = [],
 ): HTMLElement[] {
   if (!root) return [];
 
@@ -103,6 +119,8 @@ export function findLooseTokenAnchors(
       if (text.length === 0) return NodeFilter.FILTER_REJECT;
       if (isInEditableRegion(node, composer)) return NodeFilter.FILTER_REJECT;
       if (turns.some((turn) => turn.contains(node))) return NodeFilter.FILTER_REJECT;
+      if (excluded.some((region) => region.contains(node))) return NodeFilter.FILTER_REJECT;
+      if (node.parentElement?.closest(PAGE_CHROME_SELECTOR)) return NodeFilter.FILTER_REJECT;
       return hasResolvableToken(text) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
     },
   });

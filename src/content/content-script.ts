@@ -134,8 +134,11 @@ let observedOnPage: string[] = [];
  */
 let scope: ConversationScope = emptyScope();
 
-/** Banners currently on the page, so their counts can follow the scope. */
-const attachedBanners: AttachedBanner[] = [];
+/**
+ * Banners currently on the page, so their counts can follow the scope.
+ * `loose` marks banners placed by the fallback, not on a matched turn.
+ */
+const attachedBanners: Array<{ banner: AttachedBanner; loose: boolean }> = [];
 
 /** Tokens already reported as present but unresolvable; reported once each. */
 const unresolvableReported = new Set<string>();
@@ -535,28 +538,48 @@ function reportUnresolvableTokens(seen: readonly string[]): void {
 }
 
 /**
- * Offer a banner on any region holding a resolvable token that the adapter's
- * reply selectors do not cover.
+ * Offer a banner on any region holding a resolvable token, but only when the
+ * adapter's reply selectors match nothing on the page.
  *
  * This is what a rotted selector costs: precision. The banner lands on a
  * block the token sits in rather than on the reply the site knows it to be
  * part of, and it reads inert text only — but it appears, which is the whole
  * difference between a redesign costing polish and costing the feature.
+ *
+ * If the adapter finds any replies, we trust it to find all of them. A token
+ * outside them is then in the user's message, a sidebar title or similar, not
+ * in a reply. So the fallback stays off, and its banners from before the first
+ * reply matched are removed.
  */
 function attachLooseBanners(composer: HTMLElement | null, transcript: string): void {
+  const turns = adapter.getResponseElements();
+  if (turns.length > 0) {
+    detachLooseBanners();
+    return;
+  }
+
   // One check over the text already in hand, rather than a walk that asks the
   // same question of every node on the page and finds nothing.
   if (scope.size === 0 || !scope.mightResolve(transcript)) return;
 
-  const turns = adapter.getResponseElements();
   const anchors = findLooseTokenAnchors(
     document.body,
     turns,
     composer,
     (text) => scope.mightResolve(text) && scope.resolve(text).matches.length > 0,
+    adapter.getUserMessageElements?.() ?? [],
   );
   for (const anchor of anchors) {
     attachBanner(anchor, false);
+  }
+}
+
+function detachLooseBanners(): void {
+  for (let i = attachedBanners.length - 1; i >= 0; i--) {
+    const { banner, loose } = attachedBanners[i];
+    if (!loose) continue;
+    banner.detach();
+    attachedBanners.splice(i, 1);
   }
 }
 
@@ -567,16 +590,19 @@ function attachLooseBanners(composer: HTMLElement | null, transcript: string): v
  * what an editable element looks like; only the adapter knows which element
  * this site's message box is, and a turn selector that has rotted onto it
  * must not end up with a reveal control over text the user is about to send.
+ *
+ * Only banners on a matched turn read form controls. The others are loose,
+ * and `detachLooseBanners` may remove them later.
  */
-function attachBanner(element: HTMLElement, readFormControls: boolean): boolean {
+function attachBanner(element: HTMLElement, onMatchedTurn: boolean): boolean {
   if (isInEditableRegion(element, adapter.getInputElement())) return false;
 
   const banner = attachDeAnonBanner(element, (text) => scope.resolve(text), {
     theme: settings?.theme,
-    readFormControls,
+    readFormControls: onMatchedTurn,
   });
   if (!banner) return false;
-  attachedBanners.push(banner);
+  attachedBanners.push({ banner, loose: !onMatchedTurn });
   return true;
 }
 
@@ -590,7 +616,7 @@ function attachBanner(element: HTMLElement, readFormControls: boolean): boolean 
  */
 function refreshBanners(): void {
   for (let i = attachedBanners.length - 1; i >= 0; i--) {
-    const banner = attachedBanners[i];
+    const { banner } = attachedBanners[i];
     if (!banner.element.isConnected) {
       attachedBanners.splice(i, 1);
       continue;
