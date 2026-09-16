@@ -105,7 +105,7 @@ export class ClipboardToast {
       <div class="pg-toast pg-design-surface" data-theme="${this.theme}" role="status" aria-live="polite" aria-atomic="true">
         <span class="pg-toast-status" aria-hidden="true"></span>
         <span class="pg-toast-msg pg-design-muted">Copied — contains replaced items. Restore originals?</span>
-        <button class="pg-toast-btn pg-design-button" type="button">Replace with originals</button>
+        <button class="pg-toast-btn pg-design-button" id="pg-clipboard-replace-btn" type="button">Replace with originals</button>
       </div>
     `;
     this.toastEl = this.shadow.querySelector('.pg-toast');
