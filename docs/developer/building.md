@@ -6,7 +6,7 @@ This guide covers local development builds for Privacy Guardrail, the public bet
 
 Install:
 
-- Node.js with npm.
+- Node.js 20 or newer, with npm.
 - Google Chrome desktop stable.
 - Rust via `rustup`.
 - Rust target `wasm32-unknown-unknown`.

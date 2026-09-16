@@ -38,6 +38,9 @@
     "clean": "rm -rf dist crate/pkg crate/target",
     "launch-chrome-without-webgpu-mac": "/Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome --user-data-dir=/private/tmp/pg-cpu-chrome --disable-features=WebGPU  --disable-gpu"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
     "@types/jest": "^30.0.0",
