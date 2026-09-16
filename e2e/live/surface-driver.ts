@@ -2,7 +2,7 @@ import type { Locator, Page, Response } from '@playwright/test';
 import { LiveE2EError } from './classifier';
 import { discoverComposer } from './composer';
 import type { ProviderName } from './contracts';
-import { handleKnownBlockers } from './known-blockers';
+import { confirmNewChat, handleKnownBlockers } from './known-blockers';
 
 const UNAVAILABLE_TEXT = /captcha|verify you are human|log in to continue|sign in to continue|not available in your country/i;
 
@@ -171,6 +171,7 @@ export class LiveSurfaceDriver {
       throw new LiveE2EError('incompatible', 'spa-navigation', 'A visible New chat control was not found');
     }
     await control.click();
+    await confirmNewChat(this.page, this.provider);
     const transcriptCleared = await this.page
       .getByText(previousSubmittedText, { exact: true })
       .waitFor({ state: 'hidden', timeout: 10_000 })

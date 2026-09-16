@@ -55,6 +55,25 @@ test('new-chat navigation waits until the previous transcript disappears', async
   expect(await page.getByText(previousMessage, { exact: true }).count()).toBe(0);
 });
 
+test('new-chat navigation confirms the signed-out clear-chat dialog', async ({ page }) => {
+  const previousMessage = 'previous sanitized transcript';
+  await page.setContent(`
+    <a href="#new" aria-label="New chat" onclick="document.getElementById('confirm').hidden = false">New chat</a>
+    <div role="dialog" id="confirm" hidden>
+      <a href="#cleared" onclick="document.getElementById('old').remove(); document.getElementById('confirm').remove()">Clear chat</a>
+    </div>
+    <main>
+      <div id="old">${previousMessage}</div>
+      <form><textarea style="width:400px;height:80px"></textarea><button type="submit">Send</button></form>
+    </main>
+  `);
+
+  const driver = new ChatGptLiveSurfaceDriver(page);
+  await driver.startNewChat(previousMessage);
+
+  expect(await page.getByText(previousMessage, { exact: true }).count()).toBe(0);
+});
+
 test('clicks a real pointer target inside nested closed extension shadow roots', async ({ page }) => {
   await page.setContent('<div id="pg-review-overlay-host" style="position:fixed;inset:0"></div>');
   await page.evaluate(() => {
