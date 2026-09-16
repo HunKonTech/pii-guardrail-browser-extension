@@ -86,6 +86,26 @@ test('detects a provider dialog that covers the page', async ({ page }) => {
   expect(await driver.providerBlockerVisible()).toBe(true);
 });
 
+test('ignores a non-modal provider panel beside the page', async ({ page }) => {
+  await page.setContent(`
+    <aside role="dialog" aria-label="Help" style="position:fixed;top:0;right:0;width:200px;height:300px">Help</aside>
+    <main style="height:100vh"><form><textarea style="width:400px;height:80px"></textarea></form></main>
+  `);
+  const driver = new ChatGptLiveSurfaceDriver(page);
+
+  expect(await driver.providerBlockerVisible()).toBe(false);
+});
+
+test('detects a non-modal provider dialog over the middle of the page', async ({ page }) => {
+  await page.setContent(`
+    <main style="height:100vh"><form><textarea style="width:400px;height:80px"></textarea></form></main>
+    <div role="dialog" style="position:fixed;inset:20% 30%;background:white">Before you continue</div>
+  `);
+  const driver = new ChatGptLiveSurfaceDriver(page);
+
+  expect(await driver.providerBlockerVisible()).toBe(true);
+});
+
 test('clicks a real pointer target inside nested closed extension shadow roots', async ({ page }) => {
   await page.setContent('<div id="pg-review-overlay-host" style="position:fixed;inset:0"></div>');
   await page.evaluate(() => {

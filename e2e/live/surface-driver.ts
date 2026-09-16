@@ -83,16 +83,20 @@ export class LiveSurfaceDriver {
   }
 
   // Privacy Guardrail's own surfaces live in closed shadow roots, so any dialog
-  // found here belongs to the provider.
+  // found here belongs to the provider. Only a dialog that blocks the page counts:
+  // one that is modal or sits over the middle of the viewport, not a side panel.
   async providerBlockerVisible(): Promise<boolean> {
-    const dialogVisible = await this.page.evaluate(() =>
-      Array.from(document.querySelectorAll('[role="dialog"], [role="alertdialog"], dialog')).some((element) => {
+    const dialogVisible = await this.page.evaluate(() => {
+      const center = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
+      return Array.from(document.querySelectorAll('[role="dialog"], [role="alertdialog"], dialog')).some((element) => {
         const html = element as HTMLElement;
         const rect = html.getBoundingClientRect();
         const style = getComputedStyle(html);
-        return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
-      }),
-    );
+        const visible = rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+        if (!visible) return false;
+        return html.matches(':modal') || html.getAttribute('aria-modal') === 'true' || (center !== null && html.contains(center));
+      });
+    });
     if (dialogVisible) return true;
     const body = await this.page.locator('body').innerText({ timeout: 3_000 }).catch(() => '');
     return UNAVAILABLE_TEXT.test(body);
