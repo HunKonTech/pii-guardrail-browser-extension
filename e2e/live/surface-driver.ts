@@ -82,6 +82,22 @@ export class LiveSurfaceDriver {
     return handleKnownBlockers(this.page, this.provider);
   }
 
+  // Privacy Guardrail's own surfaces live in closed shadow roots, so any dialog
+  // found here belongs to the provider.
+  async providerBlockerVisible(): Promise<boolean> {
+    const dialogVisible = await this.page.evaluate(() =>
+      Array.from(document.querySelectorAll('[role="dialog"], [role="alertdialog"], dialog')).some((element) => {
+        const html = element as HTMLElement;
+        const rect = html.getBoundingClientRect();
+        const style = getComputedStyle(html);
+        return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+      }),
+    );
+    if (dialogVisible) return true;
+    const body = await this.page.locator('body').innerText({ timeout: 3_000 }).catch(() => '');
+    return UNAVAILABLE_TEXT.test(body);
+  }
+
   async findComposer(): Promise<Locator> {
     const deadline = Date.now() + 30_000;
     let lastError: unknown;

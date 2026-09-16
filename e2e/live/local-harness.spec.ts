@@ -74,6 +74,18 @@ test('new-chat navigation confirms the signed-out clear-chat dialog', async ({ p
   expect(await page.getByText(previousMessage, { exact: true }).count()).toBe(0);
 });
 
+test('detects a provider dialog that covers the page', async ({ page }) => {
+  await page.setContent(`
+    <dialog id="hidden-sheet"><p>Not shown</p></dialog>
+    <main><form><textarea style="width:400px;height:80px"></textarea></form></main>
+  `);
+  const driver = new ChatGptLiveSurfaceDriver(page);
+  expect(await driver.providerBlockerVisible()).toBe(false);
+
+  await page.evaluate(() => (document.getElementById('hidden-sheet') as HTMLDialogElement).showModal());
+  expect(await driver.providerBlockerVisible()).toBe(true);
+});
+
 test('clicks a real pointer target inside nested closed extension shadow roots', async ({ page }) => {
   await page.setContent('<div id="pg-review-overlay-host" style="position:fixed;inset:0"></div>');
   await page.evaluate(() => {

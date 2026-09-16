@@ -1,6 +1,6 @@
 import path from 'node:path';
 import type { Locator } from '@playwright/test';
-import { LiveE2EError, classifyLiveError } from './classifier';
+import { LiveE2EError, attributeToProviderBlocker, classifyLiveError } from './classifier';
 import { ClipboardGuard } from './clipboard';
 import { clickExtensionShadowControl } from './closed-shadow-control';
 import type {
@@ -318,6 +318,7 @@ export async function executeLiveProvider(
       consoleErrors: diagnostics.consoleErrors,
     };
   } catch (error) {
+    const blocked = driver ? await driver.providerBlockerVisible().catch(() => false) : false;
     const endedAt = new Date().toISOString();
     const captured = diagnostics
       ? await diagnostics.captureFailure().catch(() => null)
@@ -328,7 +329,7 @@ export async function executeLiveProvider(
     if (captured && traceCreated) {
       captured.artifacts.push({ kind: 'trace', path: captured.tracePath });
     }
-    const result = classifyLiveError(error, {
+    const result = classifyLiveError(attributeToProviderBlocker(error, blocked), {
       provider,
       startedAt,
       endedAt,

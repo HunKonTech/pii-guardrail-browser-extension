@@ -1,5 +1,6 @@
 import {
   LiveE2EError,
+  attributeToProviderBlocker,
   classifyLiveError,
   overallExitCode,
 } from '../../e2e/live/classifier';
@@ -56,5 +57,36 @@ describe('live E2E result classification', () => {
     });
 
     expect(result.cause).toBe('Timeout for [redacted]');
+  });
+
+  test.each([
+    ['incompatible', 'submit'],
+    ['harness-error', 'review'],
+  ] as const)('attributes a %s failure under a provider blocker to the provider', (kind, phase) => {
+    const attributed = attributeToProviderBlocker(new LiveE2EError(kind, phase, 'no Send control'), true);
+
+    expect(classifyLiveError(attributed, context)).toMatchObject({
+      status: 'unavailable',
+      phase,
+      cause: 'A provider dialog or access wall covered the page: no Send control',
+    });
+  });
+
+  test('attributes an unclassified exception under a provider blocker to the provider', () => {
+    const attributed = attributeToProviderBlocker(new Error('click intercepted'), true);
+
+    expect(classifyLiveError(attributed, context)).toMatchObject({ status: 'unavailable', phase: 'unknown' });
+  });
+
+  test('keeps the original failure when no provider blocker is visible', () => {
+    const error = new LiveE2EError('incompatible', 'submit', 'no Send control');
+
+    expect(attributeToProviderBlocker(error, false)).toBe(error);
+  });
+
+  test('keeps vendor errors under a provider blocker', () => {
+    const error = new LiveE2EError('vendor-error', 'navigation', 'HTTP 503');
+
+    expect(attributeToProviderBlocker(error, true)).toBe(error);
   });
 });

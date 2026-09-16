@@ -48,6 +48,19 @@ export function classifyLiveError(
   };
 }
 
+// A step that fails while a provider dialog or access wall covers the page was
+// blocked by the provider, which the report must not present as an extension or
+// harness failure. Blockers can appear at any point, not only before the composer.
+export function attributeToProviderBlocker(error: unknown, blocked: boolean): unknown {
+  if (!blocked) return error;
+  if (error instanceof LiveE2EError && (error.kind === 'unavailable' || error.kind === 'vendor-error')) {
+    return error;
+  }
+  const phase = error instanceof LiveE2EError ? error.phase : 'unknown';
+  const message = error instanceof Error ? error.message : String(error);
+  return new LiveE2EError('unavailable', phase, `A provider dialog or access wall covered the page: ${message}`);
+}
+
 export function overallExitCode(
   results: ReadonlyArray<Pick<LiveProviderResult, 'status'>>,
 ): 0 | 1 {
