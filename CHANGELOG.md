@@ -4,7 +4,7 @@ All notable public changes to Privacy Guardrail will be documented in this file.
 
 The project follows public beta release notes for `0.x` versions.
 
-## Unreleased
+## [0.5.0] - Public Beta
 
 - Privacy Guardrail now recognizes a chat by what is on the page instead of by its web address. It used to carry a list of what a conversation's address looks like on each site, and a site quietly changing that shape was enough to lose your replacements — which happened twice in two releases. A replacement is now filed under a conversation when it is actually seen in that conversation's messages, so a site renaming a chat, redesigning its pages, or serving you a different layout no longer costs you anything. This also works on chat sites the extension has no specific knowledge of.
 - Placeholders that come back unchanged can now be restored even when Privacy Guardrail has no record of the conversation at all. Previously a chat it had lost track of offered nothing; the worst case is now that placeholders the AI has garbled — different capitalization, missing brackets — are not offered, while intact ones still are.
