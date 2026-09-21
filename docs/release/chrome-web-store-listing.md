@@ -1,6 +1,6 @@
 # Chrome Web Store Listing Copy
 
-Upload-ready copy and permission justifications for Privacy Guardrail `0.2.0`. The Chrome Web Store upload itself remains manual for the first release — this document only prepares the text and asset references the operator pastes into the Developer Dashboard.
+Upload-ready copy and permission justifications for Privacy Guardrail `0.5.0`. This document mirrors the live Chrome Web Store listing. The Chrome Web Store upload itself remains manual — this document only prepares the text and asset references the operator pastes into the Developer Dashboard.
 
 ## Item Name
 
@@ -23,62 +23,105 @@ Productivity
 ## Detailed Description
 
 ```
-Privacy Guardrail helps you spot personal or sensitive data in text before you paste it into a supported chat assistant. All detection runs locally in your browser. Nothing you type, paste, review, or correct is uploaded to any server by this extension.
+Privacy Guardrail — catch personal data before it reaches the AI
 
-Developed at the German Research Center for Artificial Intelligence (DFKI), Forschungsbereich Data Science und ihre Anwendungen.
+Privacy Guardrail helps you spot personal or sensitive data in text before you paste it into a supported AI chat assistant. All detection runs locally in your browser. Nothing you type, paste, review, or correct is uploaded to any server by this extension, and there is no telemetry or analytics.
 
-This is a public beta. 
+Developed at the German Research Center for Artificial Intelligence (DFKI), in the Data Science and its Applications research department.
+
+This is a public beta.
 
 Detection is assistive: it helps you catch things, but it will not catch everything and it is not a compliance or data-loss-prevention product.
 
-What is improved in this release
-- Much lower Local AI memory use. The default compact 4-bit model and runtime fixes reduced typical extension RAM while Local AI is loaded from multi-gigabyte beta behavior to around 1 GB in local validation, with lower GPU memory use as well.
-- More systems can keep Local AI enabled by default. The extension now only auto-disables Local AI at 2 GB or less of browser-reported memory, while still warning on 2–4 GB systems.
 
-What it does
-- Intercepts pastes on supported chat sites and offers a local review step.
-- Highlights potentially personal or sensitive spans such as names, emails, phone numbers, addresses, IBANs, credit card numbers, IP addresses, organizations, and locations.
-- Lets you accept or ignore each detected span and inserts typed placeholders for the spans you accept.
-- Keeps a local identity vault so the same value gets the same placeholder across a conversation, and supports restoration where the chat surface allows it — restored values are visually highlighted in the AI response so you can see what was filled back in.
-- Combines fast pattern recognizers with an optional local AI model that runs entirely in your browser (WebGPU when available, CPU/WASM otherwise).
-- Falls back to a clearly degraded pattern-only mode when local AI is unavailable, instead of silently pasting unchecked text.
+WHAT’S NEW IN 0.5.0
 
-Supported sites (Chrome desktop stable)
-- chatgpt.com
-- chat.openai.com
-- claude.ai
-- gemini.google.com
+• Fixed a bug introduced by ChatGPT's newer desktop layout
+• Better resilience against HTML changes of the supported chat assistants. Pastes are now reviewed even when Privacy Guardrail no longer recognizes a site's message box, by using the box you pasted into. The popup tells you when it is working this way, and the on-page warning is now reserved for pastes that were not reviewed at all.
+• Privacy Guardrail now recognizes a chat by what is on the page instead of by its web address
+• Your original values are no longer stored against a conversation; they live only in the identity vault. With cross-session memory switched off, nothing is written to durable storage at all.
+• Fixed a bug that sometimes marked the wrong texts as sensitive
+• Conversations recorded by earlier versions keep working. Nothing is migrated, rewritten, or deleted
+
+
+WHAT IT DOES
+
+• Intercepts pastes on supported chat sites and offers a local review step.
+• Highlights potentially personal or sensitive spans such as names, emails, phone numbers, addresses, IBANs, credit card numbers, IP addresses, organizations, and locations.
+• Lets you accept or ignore each detected span and inserts typed placeholders for the spans you accept.
+• Keeps a local identity vault so the same value gets the same placeholder across a conversation, and supports restoration where the chat surface allows it. Restored values are highlighted in the AI response, and restoration never writes into the message box or any other field you can type in.
+• Combines fast pattern recognizers with an optional local AI model that runs entirely in your browser through ONNX Runtime Web, using WebGPU when available and CPU/WASM otherwise.
+• Falls back to a clearly degraded pattern-only mode when local AI is unavailable, instead of silently pasting unchecked text.
+• Keeps reviewing pastes when a chat site changes enough that Privacy Guardrail no longer recognizes its message box, and warns you on the page when a paste was not reviewed.
+
+
+SUPPORTED CHAT APPS
+
+• ChatGPT (chat.openai.com, chatgpt.com)
+• Claude (claude.ai)
+• Gemini (gemini.google.com)
 
 Generic or custom websites are not supported.
 
-System requirements
-- Chrome desktop stable (latest).
-- Recommended: 16 GB RAM or more and a WebGPU-capable GPU for smooth Local AI detection.
-- Minimum for Local AI: more than 2 GB browser-reported memory. On 2 GB or less the extension automatically disables Local AI and runs pattern-only detection. Between 2 GB and 4 GB Local AI stays on but a slowdown warning may appear.
-- Without WebGPU, Local AI falls back to slower CPU/WASM execution.
-- The default Local AI model is a compact q4f16 build that typically keeps the loaded extension runtime around 1 GB of RAM in local validation, a major reduction from earlier beta builds.
-- Pattern-only detection runs on any supported Chrome system.
 
-Privacy posture
-- No telemetry. No analytics. No automatic remote feedback collection.
-- No upload of clipboard text, prompts, responses, detected entities, identity maps, vault data, or feedback logs.
-- The local AI model and runtime are packaged with the extension; no remote model fetch.
-- Settings, identity vault, allow/block lists, and local feedback logs are stored only in Chrome extension storage on your device.
+PRIVACY POSTURE
 
-Known limitations
-- Detection can miss sensitive content and can flag harmless text.
-- Short names, ambiguous words, code blocks, tables, and unusual formatting reduce detection quality.
-- Local AI can be slow or unavailable depending on browser and device resources; pattern-only mode covers a narrower set of categories.
-- Restoration depends on local placeholder records and may not handle every response rewrite.
+• No telemetry. No analytics. No automatic remote feedback collection.
+• No upload of clipboard text, prompts, responses, detected entities, identity maps, vault data, or feedback logs.
+• No clipboard permissions. The extension sees clipboard text only in the paste or copy you make on a supported chat site, and cannot read your clipboard in the background or on other websites.
+• Your original values are stored only in the identity vault, which you can inspect and edit in the options page. What is recorded against a conversation is the placeholders it used, never the originals.
+• With cross-session memory switched off, no original values are written to durable storage at all; restoration lasts only as long as the browser session.
+• The local AI model and runtime are packaged with the extension; there is no remote model fetch.
+• Settings, identity vault, allow/block lists, and local feedback logs are stored only in Chrome extension storage on your device.
+• Full details in the project's Privacy Policy: https://github.com/dfki-dsa/pii-guardrail-browser-extension/blob/main/PRIVACY.md
 
-Open source and reporting
-- Source code: https://github.com/dfki-dsa/pii-guardrail-browser-extension
-- Privacy notes: https://github.com/dfki-dsa/pii-guardrail-browser-extension/blob/main/PRIVACY.md
-- Support: https://github.com/dfki-dsa/pii-guardrail-browser-extension/blob/main/SUPPORT.md
-- Security and privacy reports: https://github.com/dfki-dsa/pii-guardrail-browser-extension/blob/main/SECURITY.md
-- Sensitive security or privacy reports: pii@dfki.de
 
-Please file public bug, false-positive, false-negative, and site-compatibility reports through GitHub Issues using only synthetic or sanitized examples. Do not include real personal data, secrets, or private prompts in public reports.
+SYSTEM REQUIREMENTS
+
+Privacy Guardrail runs a transformer NER model directly in your browser, which is demanding. Please review these requirements before installing:
+
+• Browser: Google Chrome desktop, latest stable version. Other Chromium browsers and mobile Chrome are not supported in this release.
+• Recommended for Local AI: at least 16 GB of system RAM and a WebGPU-capable GPU for smooth, responsive detection.
+• Minimum for Local AI: more than 2 GB of browser-reported memory. On systems with 2 GB or less, Local AI auto-disables and the extension falls back to pattern-only detection. Between 2 GB and 4 GB, Local AI stays on but a slowdown warning may appear.
+• Without WebGPU: Local AI falls back to CPU/WASM execution — functional but noticeably slower.
+• The default Local AI model is a compact q4f16 build that typically keeps the loaded extension runtime around 1 GB of RAM in local validation.
+• Pattern-only mode (regex/checksum detection without the transformer) runs on any supported Chrome system, regardless of memory or GPU.
+
+These requirements exist because the AI model runs locally on your device instead of in the cloud. Further lowering resource use through smaller models, distillation, and more efficient inference is an active area of work.
+
+
+KNOWN LIMITATIONS — PLEASE READ
+
+Privacy Guardrail is an assistive tool, not a compliance or data loss prevention (DLP) product. It is currently in public beta (version 0.5.0).
+
+• Detection can miss sensitive content (false negatives) and can flag harmless text (false positives). Always review the suggestions before sending.
+• Short names, ambiguous words, code blocks, tables, and unusual formatting reduce detection quality.
+• Local AI performance depends on your browser, device memory, and WebGPU support. Pattern-only mode covers a narrower set of categories than Local AI.
+• Restoration of placeholders in model responses depends on local records and may not handle every rewrite the model produces. Placeholders the model has altered, for example by changing capitalization or dropping brackets, are not offered for restoration.
+• The extension does not protect text you type directly into the chat input — it triggers on paste events.
+• Detection quality varies by language; English and major European languages are the primary focus during the beta. Local AI's vocabulary covers Latin, Greek, and Cyrillic script only, so names and addresses written in other scripts, for example Chinese, Japanese, or Arabic, are less likely to be flagged. Pattern detection is unaffected.
+
+If accidentally sharing personal data with an AI service would have serious legal, financial, or safety consequences for you, please do not rely on this extension as your sole safeguard.
+
+
+OPEN SOURCE AND TRANSPARENT
+
+Privacy Guardrail is open source. You can inspect the code, build it yourself, and verify the SHA-256 checksum of each release against the ZIP attached to the corresponding GitHub Release. Contributions, bug reports, and feedback are welcome through the project's GitHub repository.
+
+
+ABOUT THE PROJECT
+
+Privacy Guardrail is developed in the Data Science and its Applications research department at DFKI (German Research Center for Artificial Intelligence) as part of ongoing research into privacy-preserving interaction with large language models.
+
+
+PROVIDER & LEGAL NOTICE
+
+Published by Deutsches Forschungszentrum für Künstliche Intelligenz GmbH (DFKI).
+
+• Impressum / Legal Notice (§ 5 DDG): https://github.com/dfki-dsa/pii-guardrail-browser-extension/blob/main/IMPRESSUM.md
+• Privacy Policy: https://github.com/dfki-dsa/pii-guardrail-browser-extension/blob/main/PRIVACY.md
+• Terms of Use: https://github.com/dfki-dsa/pii-guardrail-browser-extension/blob/main/TERMS.md
+• Source code & releases: https://github.com/dfki-dsa/pii-guardrail-browser-extension
 ```
 
 ## Single Purpose Statement
@@ -179,7 +222,7 @@ Variant selection rules:
 
 ## Pre-Submission Checklist
 
-- [ ] `manifest.json` version equals the released `0.2.0` artifact (`npm run version:check -- 0.2.0 --require-tag`).
+- [ ] `manifest.json` version equals the released `0.5.0` artifact (`npm run version:check -- 0.5.0 --require-tag`).
 - [ ] Uploaded ZIP is the exact artifact built by `npm run package:release` and matches the published SHA-256 checksum.
 - [ ] Listing only references the four supported sites and does not advertise generic or custom site support.
 - [ ] Listing uses "review", "replace", and "restore"; it avoids legal de-identification
