@@ -42,8 +42,12 @@ function Invoke-Checked([scriptblock]$block) {
 
 if (Step 'fetch') {
   Write-Host '== 1/5 Cloning repositories' -ForegroundColor Cyan
-  $restore = if ($NoRestore) { @() } else { @('--restore') }
-  Invoke-Checked { & $Python (Join-Path $here 'fetch_repos.py') --out $repos @restore }
+  # Build the argument list explicitly: a one-element array assigned from an
+  # `if` expression unwraps to a string, and splatting a string passes it
+  # character by character.
+  $fetchArgs = @((Join-Path $here 'fetch_repos.py'), '--out', $repos)
+  if (-not $NoRestore) { $fetchArgs += '--restore' }
+  Invoke-Checked { & $Python @fetchArgs }
 }
 
 if (Step 'label') {

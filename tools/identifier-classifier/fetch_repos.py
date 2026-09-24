@@ -89,7 +89,9 @@ def main() -> None:
             print(f"[{lang}] {url}", flush=True)
             if not target.exists():
                 target.parent.mkdir(parents=True, exist_ok=True)
-                if not run(["git", "clone", "--depth", "1", "--quiet", url, str(target)]):
+                if not run(["git", "-c", "core.longpaths=true", "clone", "--depth", "1", "--quiet", url, str(target)]):
+                    # A half-cloned directory would be taken for a finished one next time.
+                    shutil.rmtree(target, ignore_errors=True)
                     continue
             if args.restore:
                 (restore_csharp if lang == "csharp" else restore_typescript)(target)
