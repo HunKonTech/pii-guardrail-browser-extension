@@ -77,6 +77,30 @@ export function buildVariantRegex(canonical: string): RegExp {
   return new RegExp(pattern, 'gi');
 }
 
+/**
+ * In pasted code the extension writes placeholders without brackets inside
+ * identifiers (`getPERSON_1Invoice`, `PERSON_1_total`). Accept that exact
+ * form glued to identifier characters when the join looks like a word
+ * boundary: nothing uppercase right before it (rejects `GMAILEMAIL_1`), and
+ * `_`, a camelCase word (`Invoice`) or nothing right after it (rejects
+ * `PERSON_1A`).
+ */
+function isEmbeddedInIdentifier(
+  text: string,
+  start: number,
+  end: number,
+  matchText: string,
+  canonical: string,
+): boolean {
+  if (matchText !== canonical.slice(1, -1)) return false;
+  const before = text[start - 1];
+  const after = text[end];
+  const beforeOk = !isWordChar(before) || /[a-z0-9_$]/.test(before);
+  const afterOk =
+    !isWordChar(after) || after === '_' || (/[A-Z]/.test(after) && /[a-z]/.test(text[end + 1] ?? ''));
+  return beforeOk && afterOk;
+}
+
 export interface VariantMatch {
   /** Inclusive start offset in the source text. */
   start: number;
@@ -127,13 +151,15 @@ export function findVariantMatches(
       // `GMAILEMAIL_1` is rejected for `[EMAIL_1]` and `PERSON_1A` is
       // rejected for `[PERSON_1]`. Digit collisions on the right are
       // already excluded by the regex's `(?!\d)` lookahead.
-      if (!hasOpen) {
-        const before = start === 0 ? undefined : text[start - 1];
-        if (isWordChar(before)) continue;
-      }
-      if (!hasClose) {
-        const after = end >= text.length ? undefined : text[end];
-        if (isWordChar(after)) continue;
+      const before = start === 0 ? undefined : text[start - 1];
+      const after = end >= text.length ? undefined : text[end];
+      const blockedBefore = !hasOpen && isWordChar(before);
+      const blockedAfter = !hasClose && isWordChar(after);
+      if (
+        (blockedBefore || blockedAfter) &&
+        !isEmbeddedInIdentifier(text, start, end, m[0], canonical)
+      ) {
+        continue;
       }
 
       // Drop matches that overlap a previously-recorded (longer-index)

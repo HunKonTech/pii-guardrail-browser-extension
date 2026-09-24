@@ -36,7 +36,9 @@ Developed at the [German Research Center for Artificial Intelligence (DFKI)](htt
 - Claude (`claude.ai`)
 - Gemini (`gemini.google.com`)
 
-Generic or custom sites are not supported in this beta.
+Optional: web search engines (Bing, Google, DuckDuckGo, Ecosia, Brave Search, Startpage), when **Protect web searches** is switched on in the options. Searches typed into the browser's address bar are not covered.
+
+Other generic or custom sites are not supported in this beta.
 
 ## Install
 

@@ -69,7 +69,7 @@ describe('entitiesForGroup', () => {
   });
 
   test('Network contains IP_ADDRESS only', () => {
-    expect(entitiesForGroup('Network')).toEqual(['IP_ADDRESS']);
+    expect(entitiesForGroup('Network')).toEqual(['IP_ADDRESS', 'HOSTNAME']);
   });
 
   test('Location contains LOCATION only', () => {
@@ -77,7 +77,7 @@ describe('entitiesForGroup', () => {
   });
 
   test('Password contains PASSWORD only', () => {
-    expect(entitiesForGroup('Password')).toEqual(['PASSWORD']);
+    expect(entitiesForGroup('Password')).toEqual(['PASSWORD', 'SECRET']);
   });
 
   test('Organization contains ORGANIZATION only', () => {

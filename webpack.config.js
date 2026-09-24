@@ -41,6 +41,7 @@ module.exports = (_env = {}) => {
     entry: {
       'background/service-worker': './src/background/service-worker.ts',
       'content/content-script': './src/content/content-script.ts',
+      'content/search-script': './src/content/search-script.ts',
       'content/clipboard-interceptor-page': './src/content/clipboard-interceptor-page.ts',
       'offscreen/offscreen': './src/offscreen/offscreen.ts',
       'system-check/system-check-offscreen': './src/system-check/system-check-offscreen.ts',

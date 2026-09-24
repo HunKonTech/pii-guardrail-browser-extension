@@ -4,6 +4,13 @@ All notable public changes to Privacy Guardrail will be documented in this file.
 
 The project follows public beta release notes for `0.x` versions.
 
+## [Unreleased]
+
+- Privacy Guardrail now looks for secrets in pasted source code: API keys and tokens from common providers, private key blocks, credentials assigned in code and configuration files, the user, password and host of connection strings, internal hostnames, and account names in home-directory paths. It is on by default and can be switched off under Options → Code blocks.
+- With source-code detection on, Local AI now reads identifiers as words, so it can find a name hidden in `getAnnaMuellerInvoice` or `anna_mueller_id`. A flagged word is replaced in every identifier that contains it, and inside identifiers the placeholder is written without brackets (`getPERSON_1Invoice`) so the code stays valid. Copying code back from a reply restores those placeholders too.
+- New option **Rename code identifiers** (Options → Code blocks, off by default): the classes, functions, variables, fields and parameters that pasted code declares are renamed consistently (`alma` → `var3`, `alma.nev` → `var3.field2`), however generic the name, together with the project names the code only uses, while imported and well-known library names stay. The review's Replaced tab shows the renamed code, and it also works on protected web search pages. Names in which Local AI finds personal data keep a typed placeholder. Aliases are remembered across pastes, and copying code back from a reply restores the original names. The popup's test tool now shows what a paste would become.
+- New option **Protect web searches** (Options → Web search, off by default) for Bing, Google, DuckDuckGo, Ecosia, Brave Search and Startpage. Pastes into the search box are reviewed like on the chat sites, and each search is held until its query has been checked; personal data you approve is replaced with placeholders before the search is sent. Switching it on asks the browser for access to those sites. Searches typed into the address bar and the suggestions an engine requests while you type are not covered.
+
 ## [0.5.0] - Public Beta
 
 - Privacy Guardrail now recognizes a chat by what is on the page instead of by its web address. It used to carry a list of what a conversation's address looks like on each site, and a site quietly changing that shape was enough to lose your replacements — which happened twice in two releases. A replacement is now filed under a conversation when it is actually seen in that conversation's messages, so a site renaming a chat, redesigning its pages, or serving you a different layout no longer costs you anything. This also works on chat sites the extension has no specific knowledge of.

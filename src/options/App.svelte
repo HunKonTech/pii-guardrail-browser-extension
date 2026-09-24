@@ -7,6 +7,7 @@
 	import BlocklistCard from './components/BlocklistCard.svelte';
 	import CancelDetectionCard from './components/CancelDetectionCard.svelte';
 	import CodeBlocksCard from './components/CodeBlocksCard.svelte';
+	import SearchProtectionCard from './components/SearchProtectionCard.svelte';
 	import DebugSystemCheckCard from './components/DebugSystemCheckCard.svelte';
 	import PublicSupportCard from './components/PublicSupportCard.svelte';
 	import SensitivityCard from './components/SensitivityCard.svelte';
@@ -110,7 +111,13 @@
 
 		<CancelDetectionCard settings={model.settings} setValue={model.setCancelDetectionBehavior} />
 
-		<CodeBlocksCard settings={model.settings} setValue={model.setSkipCodeBlocks} />
+		<CodeBlocksCard
+			settings={model.settings}
+			setValue={model.setSkipCodeBlocks}
+			setCodeAnonymization={model.setCodeAnonymization}
+		/>
+
+		<SearchProtectionCard settings={model.settings} setValue={model.setSearchProtectionEnabled} />
 
 		<PublicSupportCard />
 

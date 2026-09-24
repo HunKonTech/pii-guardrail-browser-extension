@@ -277,6 +277,10 @@ export const DEFAULT_SETTINGS: Settings = {
   // users can opt out from the popup if the copy toast feels intrusive.
   clipboardInterceptEnabled: true,
   skipCodeBlocks: false,
+  // Credential shapes in code are distinctive enough to scan by default.
+  codeAnonymization: 'secrets',
+  // Opt-in: switching it on asks the browser for access to the search engines.
+  searchProtectionEnabled: false,
   // Privacy-safe default: an explicit cancel asks what to do with the pending paste.
   cancelDetectionBehavior: 'ask',
   localAiUnloadTimeoutMs: OFFSCREEN_IDLE_MS,

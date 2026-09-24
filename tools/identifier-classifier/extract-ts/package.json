@@ -1,0 +1,9 @@
+{
+  "name": "identifier-extract-ts",
+  "private": true,
+  "type": "module",
+  "description": "Labels every identifier in a TS/JS repository as OWN or LIB using the TypeScript checker.",
+  "dependencies": {
+    "typescript": "^5.9.0"
+  }
+}

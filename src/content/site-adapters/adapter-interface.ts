@@ -78,7 +78,7 @@ function tryExecInsertText(text: string): boolean {
  * cache the last value they wrote (React and friends) still observe the
  * change and do not revert the field on their next render.
  */
-function setFormControlValue(
+export function setFormControlValue(
   element: HTMLTextAreaElement | HTMLInputElement,
   value: string,
 ): void {

@@ -14,6 +14,7 @@ import { loadSettings, saveSettings, logFeedback } from "../shared/storage";
 import { detectionOptionsFromSettings, fallbackNerStatus } from "../shared/detection-config";
 import { DEFAULT_SETTINGS, LOCAL_AI_ACTIVITY_WINDOW_MS } from "../shared/constants";
 import { shouldAutoWarmLocalAi } from "../shared/local-ai-warmup-gate";
+import { SEARCH_CONTENT_SCRIPT_ID, SEARCH_ENGINE_ORIGINS } from "../shared/search-engines";
 import {
   buildSystemCheckResult,
   loadSystemCheckResult,
@@ -686,11 +687,49 @@ function allowContentScriptSessionStorage(): void {
 
 allowContentScriptSessionStorage();
 
+/**
+ * Keep the web search content script registered exactly while "Protect web
+ * searches" is on and the user has granted the search engines. Registration
+ * persists across browser sessions, so this only has to react to changes.
+ */
+async function syncSearchContentScript(): Promise<void> {
+  if (!chrome.scripting?.registerContentScripts) return;
+  const settings = await loadSettings();
+  const granted = await chrome.permissions.contains({ origins: [...SEARCH_ENGINE_ORIGINS] });
+  const wanted = settings.searchProtectionEnabled && granted;
+  const registered = await chrome.scripting.getRegisteredContentScripts({ ids: [SEARCH_CONTENT_SCRIPT_ID] });
+
+  if (wanted && registered.length === 0) {
+    await chrome.scripting.registerContentScripts([
+      {
+        id: SEARCH_CONTENT_SCRIPT_ID,
+        matches: [...SEARCH_ENGINE_ORIGINS],
+        js: ["content/search-script.js"],
+        runAt: "document_start",
+        persistAcrossSessions: true,
+      },
+    ]);
+  } else if (!wanted && registered.length > 0) {
+    await chrome.scripting.unregisterContentScripts({ ids: [SEARCH_CONTENT_SCRIPT_ID] });
+  }
+}
+
+function syncSearchContentScriptBestEffort(): void {
+  syncSearchContentScript().catch((err) => {
+    console.error("[PG:background] search content script sync failed", err);
+  });
+}
+
+syncSearchContentScriptBestEffort();
+chrome.permissions?.onAdded?.addListener(syncSearchContentScriptBestEffort);
+chrome.permissions?.onRemoved?.addListener(syncSearchContentScriptBestEffort);
+
 /** Initialize default settings on install. */
 chrome.runtime.onInstalled.addListener(async () => {
   const settings = await loadSettings();
   await saveSettings(settings);
   await ensureSystemCheckResult();
+  syncSearchContentScriptBestEffort();
 
   await updateActiveTabIcon();
 });
@@ -728,6 +767,9 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === "local" && changes[SETTINGS_KEY]) {
     const previousSettings = changes[SETTINGS_KEY].oldValue;
     const nextSettings = changes[SETTINGS_KEY].newValue;
+    if (previousSettings?.searchProtectionEnabled !== nextSettings?.searchProtectionEnabled) {
+      syncSearchContentScriptBestEffort();
+    }
     // Normalize against the default so the one-time migration that stamps the
     // dtype onto previously-stored settings does not tear down the runtime.
     const previousWebGpuDtype = previousSettings?.nerWebGpuDtype ?? DEFAULT_SETTINGS.nerWebGpuDtype;

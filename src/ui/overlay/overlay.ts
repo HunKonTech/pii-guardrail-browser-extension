@@ -16,12 +16,13 @@ import ReviewOverlayComponent from './ReviewOverlay.svelte';
 import {
   OverlayModel,
   type OverlayCallbacks,
+  type IdentifierRenamer,
   type PreviewResolver,
   type PreviewResolverFactory,
 } from './overlay-model';
 
 export const OVERLAY_ENTITY_TYPES = ENTITY_TYPES;
-export type { OverlayCallbacks, PreviewResolver, PreviewResolverFactory };
+export type { IdentifierRenamer, OverlayCallbacks, PreviewResolver, PreviewResolverFactory };
 
 /**
  * Shadow DOM overlay for reviewing and correcting PII detections.
@@ -50,6 +51,7 @@ export class ReviewOverlay {
     timings?: { totalMs: number },
     _theme: 'dark' | 'light' = 'dark',
     previewResolverFactory?: PreviewResolverFactory,
+    identifierRenamer?: IdentifierRenamer,
   ) {
     void _theme; // intentionally unused — single-style overlay.
 
@@ -80,6 +82,7 @@ export class ReviewOverlay {
       confidenceThreshold,
       timings,
       previewResolverFactory,
+      identifierRenamer,
     );
 
     this.host = document.createElement('div');

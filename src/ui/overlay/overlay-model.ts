@@ -9,6 +9,7 @@
  */
 
 import { derived, get, writable, type Readable, type Writable } from 'svelte/store';
+import type { IdentifierRename } from '../../shared/anonymizer';
 import type { EntityType, FeedbackEntry, PiiSpan } from '../../shared/message-types';
 import {
   byteOffsetToStringIndex,
@@ -49,6 +50,12 @@ export type ThresholdResolver = (span: PiiSpan) => number;
 export type PreviewResolver = (span: PiiSpan) => string;
 export type PreviewResolverFactory = () => PreviewResolver;
 
+/**
+ * Returns the code identifier renames that pasting with `approvedSpans`
+ * would apply, so the preview shows the renamed code too.
+ */
+export type IdentifierRenamer = (approvedSpans: PiiSpan[]) => IdentifierRename[];
+
 export class OverlayModel {
   readonly originalText: string;
   readonly timings?: { totalMs: number };
@@ -66,10 +73,13 @@ export class OverlayModel {
   enabledCount: Readable<number>;
   highlightedHtml: Readable<string>;
   previewText: Readable<string>;
+  /** Distinct code identifiers the paste will rename. */
+  renamedCount: Readable<number>;
   mainIndices: Readable<number[]>;
   codeBlockIndices: Readable<number[]>;
 
   private readonly previewResolverFactory: PreviewResolverFactory | null;
+  private readonly identifierRenamer: IdentifierRenamer | null;
 
   constructor(
     originalText: string,
@@ -78,8 +88,10 @@ export class OverlayModel {
     confidenceThreshold: number | ThresholdResolver,
     timings?: { totalMs: number },
     previewResolverFactory?: PreviewResolverFactory,
+    identifierRenamer?: IdentifierRenamer,
   ) {
     this.previewResolverFactory = previewResolverFactory ?? null;
+    this.identifierRenamer = identifierRenamer ?? null;
     this.originalText = originalText;
     this.callbacks = callbacks;
     this.thresholdFn =
@@ -119,15 +131,19 @@ export class OverlayModel {
       [this.spanStates, this.manualSpans],
       ([states, manuals]) => buildHighlightedHtml(this.originalText, states, manuals),
     );
+    const renames = derived([this.spanStates, this.manualSpans], ([states, manuals]) =>
+      this.identifierRenamer ? this.identifierRenamer(approvedSpans(states, manuals)) : [],
+    );
     this.previewText = derived(
-      [this.spanStates, this.manualSpans],
-      ([states, manuals]) => {
+      [this.spanStates, this.manualSpans, renames],
+      ([states, manuals, identifierRenames]) => {
         const resolver = this.previewResolverFactory
           ? this.previewResolverFactory()
           : null;
-        return buildPreview(this.originalText, states, manuals, resolver);
+        return buildPreview(this.originalText, approvedSpans(states, manuals), identifierRenames, resolver);
       },
     );
+    this.renamedCount = derived(renames, (list) => new Set(list.map((r) => r.alias)).size);
     this.mainIndices = derived(this.spanStates, (states) => {
       const out: number[] = [];
       for (let i = 0; i < states.length; i++) if (!states[i].span.inCodeBlock) out.push(i);
@@ -364,33 +380,55 @@ function buildHighlightedHtml(
   return result;
 }
 
-function buildPreview(
-  originalText: string,
-  states: SpanState[],
-  manuals: PiiSpan[],
-  resolver: PreviewResolver | null,
-): string {
+/** The spans a confirm would hand to the anonymiser, in text order. */
+function approvedSpans(states: SpanState[], manuals: PiiSpan[]): PiiSpan[] {
   const enabled = states
     .filter((s) => s.enabled)
     .map((s) => ({ ...s.span, entity_type: s.entityType }));
-  const all = [...enabled, ...manuals].sort((a, b) => a.start - b.start);
+  return [...enabled, ...manuals].sort((a, b) => a.start - b.start);
+}
+
+function buildPreview(
+  originalText: string,
+  spans: PiiSpan[],
+  renames: IdentifierRename[],
+  resolver: PreviewResolver | null,
+): string {
+  type Mark = { start: number; end: number; html: string };
+  const marks: Mark[] = [];
   const counters: Record<string, number> = {};
-  let result = '';
-  let cursor = 0;
-  for (const span of all) {
-    const start = byteOffsetToStringIndex(originalText, span.start);
-    const end = byteOffsetToStringIndex(originalText, span.end);
-    if (start < cursor) continue;
-    result += escapeHtml(originalText.slice(cursor, start));
+  for (const span of spans) {
     counters[span.entity_type] = (counters[span.entity_type] || 0) + 1;
     const token = resolver
       ? resolver(span)
       : `[${span.entity_type}_${counters[span.entity_type]}]`;
-    result +=
-      `<span class="pg-highlight pg-highlight-${span.entity_type.toLowerCase()}" ` +
-      `title="${span.entity_type} (${(span.score * 100).toFixed(0)}%)">` +
-      `${escapeHtml(token)}</span>`;
-    cursor = end;
+    marks.push({
+      start: byteOffsetToStringIndex(originalText, span.start),
+      end: byteOffsetToStringIndex(originalText, span.end),
+      html:
+        `<span class="pg-highlight pg-highlight-${span.entity_type.toLowerCase()}" ` +
+        `title="${span.entity_type} (${(span.score * 100).toFixed(0)}%)">` +
+        `${escapeHtml(token)}</span>`,
+    });
+  }
+  for (const rename of renames) {
+    marks.push({
+      start: rename.start,
+      end: rename.end,
+      html:
+        `<span class="pg-highlight pg-highlight-identifier" ` +
+        `title="Renamed identifier: ${escapeHtml(originalText.slice(rename.start, rename.end))}">` +
+        `${escapeHtml(rename.alias)}</span>`,
+    });
+  }
+  marks.sort((a, b) => a.start - b.start);
+
+  let result = '';
+  let cursor = 0;
+  for (const mark of marks) {
+    if (mark.start < cursor) continue;
+    result += escapeHtml(originalText.slice(cursor, mark.start)) + mark.html;
+    cursor = mark.end;
   }
   result += escapeHtml(originalText.slice(cursor));
   return result;

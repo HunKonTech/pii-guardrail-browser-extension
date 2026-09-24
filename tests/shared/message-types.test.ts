@@ -29,6 +29,9 @@ describe('EntityType contract', () => {
       'BANK_ACCOUNT',
       'DATE',
       'MISC',
+      'SECRET',
+      'HOSTNAME',
+      'IDENTIFIER',
     ];
 
     expect(ENTITY_TYPES).toEqual(expected);

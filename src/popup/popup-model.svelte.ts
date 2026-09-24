@@ -29,7 +29,10 @@ import {
   runtimeNerModelKey,
   type NerModelChoice,
 } from '../shared/constants';
+import { anonymize } from '../shared/anonymizer';
+import { findCodeLikeRegions } from '../shared/code-identifiers';
 import { GROUP_NAMES, GROUP_DEFAULT_ON, filterByGroup } from '../shared/category-groups';
+import { EntityMap } from '../shared/entity-map';
 import { applyAllowlistToText } from '../shared/feedback';
 import { loadIdentityVault } from '../shared/identity-vault';
 import { shouldAutoWarmLocalAi } from '../shared/local-ai-warmup-gate';
@@ -134,7 +137,7 @@ const CATEGORY_DESCRIPTIONS: Record<GroupName, string> = {
   Identity: 'Names, usernames',
   Contact: 'Email, phone, address',
   Financial: 'Cards, IBAN, accounts',
-  Network: 'IP addresses',
+  Network: 'IP addresses, internal hosts',
   Location: 'Places and regions',
   Password: 'Secrets and keys',
   Organization: 'Companies and orgs',
@@ -380,6 +383,22 @@ export function createAppModels(): AppModels {
     await saveAndBroadcast({ groupsEnabled: updateCategoryLocal(categoryId, value) });
   }
 
+  /**
+   * What the paste would become, with a fresh map so the preview neither
+   * touches the vault nor shifts real placeholder numbering.
+   */
+  function formatReplacementPreview(text: string, spans: PiiSpan[], settings: Settings): string {
+    const renameIdentifiers = settings.codeAnonymization === 'full';
+    const preview = anonymize(text, spans, new EntityMap(), { renameIdentifiers });
+    if (!renameIdentifiers && findCodeLikeRegions(text).length > 0) {
+      const hint = 'Code detected. Identifier renaming is off: turn on "Rename code identifiers" in Options \u2192 Code blocks.';
+      return preview.text === text ? hint : `${hint}\n\nAfter replacement:\n${preview.text}`;
+    }
+    if (preview.text === text) return '';
+    const renamed = preview.renamedIdentifiers > 0 ? ` (${preview.renamedIdentifiers} identifier(s) renamed)` : '';
+    return `After replacement${renamed}:\n${preview.text}`;
+  }
+
   async function runDetection(): Promise<void> {
     const text = get(testInput).trim();
     if (!text || isRunning && get(isRunning)) return;
@@ -410,7 +429,9 @@ export function createAppModels(): AppModels {
       if (ner) renderNerStatus(ner);
       const nerLine = ner ? formatNerStatusLine(ner) : '';
       const body = spans.length === 0 ? formatNoPii(response.payload.timings) : formatResults(spans, response.payload.timings);
-      resultText.set(nerLine ? `${nerLine}\n\n${body}` : body);
+      const preview = formatReplacementPreview(text, spans, settings);
+      const output = preview ? `${body}\n\n${preview}` : body;
+      resultText.set(nerLine ? `${nerLine}\n\n${output}` : output);
       runCount.update((count) => count + 1);
     } catch (error) {
       resultText.set(`Error: ${error}`);

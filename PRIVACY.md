@@ -102,9 +102,17 @@ text that the browser itself hands to the page during a copy or paste you perfor
 writes to the clipboard when you click one of its buttons (see below). It cannot read your
 clipboard in the background, on a schedule, or while you are on any other website.
 
+**Web search (optional).** If you switch on **Protect web searches**, the browser asks you to
+grant access to the listed search engines (Bing, Google, DuckDuckGo, Ecosia, Brave Search,
+Startpage). Only then does a small script run on those sites, and only in their search box: it
+checks what you paste and holds a search until its query has been checked on your device. It does
+not read clipboard contents outside a paste, and it does not read search results. Switching the
+setting off removes the script and gives the access back.
+
 **Where it runs.** The extension's page scripts are injected **only** on the supported chat sites
-listed in §7 (`chatgpt.com`, `chat.openai.com`, `claude.ai`, `gemini.google.com`). On every other
-website, no extension code runs at all and no clipboard content is accessible to it.
+listed in §7 (`chatgpt.com`, `chat.openai.com`, `claude.ai`, `gemini.google.com`), and on the
+search engines above only while **Protect web searches** is on and you have granted them. On every
+other website, no extension code runs at all and no clipboard content is accessible to it.
 
 **When clipboard text is read.** On the supported sites only, and only as part of an action you
 perform yourself:

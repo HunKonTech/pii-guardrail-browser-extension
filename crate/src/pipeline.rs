@@ -1,9 +1,10 @@
 use crate::checksum;
+use crate::code;
 use crate::context;
 use crate::merger;
 use crate::ner;
 use crate::regex_recognizers;
-use crate::types::{DetectionSource, PiiSpan, PipelineConfig};
+use crate::types::{CodeMode, DetectionSource, PiiSpan, PipelineConfig};
 
 /// Run the full PII detection pipeline on the input text.
 ///
@@ -28,8 +29,11 @@ pub fn detect_with_external_spans(
         return Vec::new();
     }
 
-    // Stage 1: Regex recognizers
+    // Stage 1: Regex recognizers (plus source-code recognizers when enabled)
     let mut regex_spans = regex_recognizers::detect_regex(text);
+    if config.code_mode != CodeMode::Off {
+        regex_spans = code::combine_with_regex(regex_spans, code::detect_code_secrets(text));
+    }
 
     // Stage 2: NER (if enabled and model is loaded)
     let mut ner_spans = if config.ner_enabled && ner::is_model_loaded() {
@@ -119,7 +123,10 @@ fn ner_min_confidence(entity_type: crate::types::EntityType) -> f64 {
         | crate::types::EntityType::Ssn
         | crate::types::EntityType::Iban
         | crate::types::EntityType::IpAddress
-        | crate::types::EntityType::Date => 0.80,
+        | crate::types::EntityType::Date
+        | crate::types::EntityType::Secret
+        | crate::types::EntityType::Hostname
+        | crate::types::EntityType::Identifier => 0.80,
         // Keep Rust's authoritative cap permissive enough for model-specific
         // TS threshold profiles. AI4Privacy still filters MISC at 0.90 before
         // this boundary; BardsAI maps explicit sensitive labels to MISC at 0.70.
@@ -725,5 +732,22 @@ mod tests {
         );
         assert_detects("German", text, EntityType::IpAddress, "10.0.0.5");
         assert_detects("German", text, EntityType::Date, "15.01.1990");
+    }
+
+    #[test]
+    fn code_recognizers_run_only_when_code_mode_is_enabled() {
+        let text = "export GITHUB_TOKEN=ghp_0123456789abcdefghijABCDEFGHIJ012345";
+        let secrets_config = PipelineConfig {
+            code_mode: CodeMode::Secrets,
+            ..default_config()
+        };
+
+        assert!(!detect(text, &default_config())
+            .iter()
+            .any(|span| span.entity_type == EntityType::Secret));
+        assert!(detect(text, &secrets_config).iter().any(|span| {
+            span.entity_type == EntityType::Secret
+                && span.text == "ghp_0123456789abcdefghijABCDEFGHIJ012345"
+        }));
     }
 }

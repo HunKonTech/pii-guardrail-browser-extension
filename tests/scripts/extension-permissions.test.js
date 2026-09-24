@@ -1,5 +1,8 @@
+const fs = require('fs');
+const path = require('path');
 const {
   REQUIRED_PERMISSIONS,
+  SEARCH_HOST_PERMISSIONS,
   SUPPORTED_HOST_PERMISSIONS,
   checkExtensionPermissions,
 } = require('../../scripts/check-extension-permissions');
@@ -8,6 +11,7 @@ function validManifest(overrides = {}) {
   return {
     permissions: [...REQUIRED_PERMISSIONS],
     host_permissions: [...SUPPORTED_HOST_PERMISSIONS],
+    optional_host_permissions: [...SEARCH_HOST_PERMISSIONS],
     content_scripts: [
       { matches: [...SUPPORTED_HOST_PERMISSIONS], js: ['content/content-script.js'] },
       { matches: [...SUPPORTED_HOST_PERMISSIONS], js: ['content/clipboard-interceptor-page.js'] },
@@ -23,6 +27,18 @@ function validManifest(overrides = {}) {
 }
 
 describe('extension permission audit', () => {
+  test('the real manifest passes', () => {
+    const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../../manifest.json'), 'utf8'));
+    expect(checkExtensionPermissions(manifest)).toEqual([]);
+  });
+
+  test('search sites are optional, never install-time, permissions', () => {
+    const errors = checkExtensionPermissions(
+      validManifest({ host_permissions: [...SUPPORTED_HOST_PERMISSIONS, ...SEARCH_HOST_PERMISSIONS] })
+    );
+    expect(errors).toEqual([expect.stringContaining('host_permissions must be exactly')]);
+  });
+
   test('accepts the public beta manifest permission surface', () => {
     expect(checkExtensionPermissions(validManifest())).toEqual([]);
   });

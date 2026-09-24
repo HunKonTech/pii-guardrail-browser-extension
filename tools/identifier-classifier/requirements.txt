@@ -1,0 +1,7 @@
+# Install PyTorch first, matching your GPU (see README), then: pip install -r requirements.txt
+transformers>=4.46,<5
+accelerate>=1.0
+optimum[onnxruntime]>=1.23
+onnx>=1.16
+onnxruntime>=1.19
+numpy

@@ -99,6 +99,9 @@ fn keywords_for(entity_type: EntityType) -> &'static [&'static str] {
         EntityType::IpAddress => &[],
         EntityType::Organization => &[],
         EntityType::Misc => &[],
+        EntityType::Secret => &[],
+        EntityType::Hostname => &[],
+        EntityType::Identifier => &[],
     }
 }
 

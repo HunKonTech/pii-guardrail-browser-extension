@@ -283,6 +283,64 @@ export function upsertEntity(
   return { record, created: true };
 }
 
+/**
+ * Look up or create the vault record for a renamed code identifier.
+ *
+ * Identifiers are case-sensitive (`Alma` and `alma` are different names), so
+ * they are matched on the exact original rather than `normalizedKey`. The
+ * alias is stored as the record's synthetic value in `synthetic` mode, which
+ * is what lets the existing restore paths reverse it like any synthetic
+ * stand-in. Returns undefined when no usable alias exists — the name is then
+ * left as it is.
+ *
+ * @param makeAlias — alias for a given vault-wide index.
+ * @param isTaken — true when an alias would collide with a name in the text.
+ */
+export function upsertIdentifierAlias(
+  data: IdentityVaultData,
+  name: string,
+  makeAlias: (index: number) => string,
+  isTaken: (alias: string) => boolean,
+  now: number = Date.now(),
+): IdentityRecord | undefined {
+  const existing = data.records.find(
+    (r) => r.entityType === 'IDENTIFIER' && r.originalText === name,
+  );
+  if (existing) {
+    if (!existing.syntheticValue || isTaken(existing.syntheticValue)) return undefined;
+    existing.lastSeenAt = now;
+    existing.usageCount += 1;
+    return existing;
+  }
+
+  const inVault = (alias: string) =>
+    data.records.some((r) => r.syntheticValue === alias || r.originalText === alias);
+  let index = (data.counters.IDENTIFIER ?? 0) + 1;
+  let alias = makeAlias(index);
+  while (isTaken(alias) || inVault(alias)) {
+    index += 1;
+    alias = makeAlias(index);
+  }
+  data.counters.IDENTIFIER = index;
+
+  const record: IdentityRecord = {
+    id: makeId(),
+    originalText: name,
+    normalizedKey: name,
+    entityType: 'IDENTIFIER',
+    placeholder: placeholder('IDENTIFIER', index),
+    syntheticValue: alias,
+    replacementMode: 'synthetic',
+    pinned: false,
+    createdAt: now,
+    updatedAt: now,
+    lastSeenAt: now,
+    usageCount: 1,
+  };
+  data.records.push(record);
+  return record;
+}
+
 /** Update fields on a record by id. Returns the updated record, or
  *  undefined if no matching id exists. */
 export function updateRecord(

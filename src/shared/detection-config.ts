@@ -12,6 +12,7 @@ export function detectionOptionsFromSettings(
     context_boost: settings.contextBoost,
     context_window: settings.contextWindow,
     ner_enabled: provider !== 'off',
+    code_mode: settings.codeAnonymization,
     ner_provider: provider,
     ner_model: model,
     ner_webgpu_dtype: overrides?.ner_webgpu_dtype ?? settings.nerWebGpuDtype,

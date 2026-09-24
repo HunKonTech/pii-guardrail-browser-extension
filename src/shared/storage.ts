@@ -126,6 +126,12 @@ function normalizeSettings(raw: unknown): Settings {
   if (typeof settings.skipCodeBlocks !== 'boolean') {
     settings.skipCodeBlocks = false;
   }
+  if (!['off', 'secrets', 'full'].includes(settings.codeAnonymization)) {
+    settings.codeAnonymization = DEFAULT_SETTINGS.codeAnonymization;
+  }
+  if (typeof settings.searchProtectionEnabled !== 'boolean') {
+    settings.searchProtectionEnabled = DEFAULT_SETTINGS.searchProtectionEnabled;
+  }
   if (!isCancelDetectionBehavior(settings.cancelDetectionBehavior)) {
     settings.cancelDetectionBehavior = DEFAULT_SETTINGS.cancelDetectionBehavior;
   }

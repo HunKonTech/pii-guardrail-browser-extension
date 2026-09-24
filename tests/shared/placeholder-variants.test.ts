@@ -104,6 +104,21 @@ describe('findVariantMatches — negative cases', () => {
     expect(findVariantMatches('We saw [PERSON_10] yesterday', known)).toEqual([]);
   });
 
+  test('exact bare placeholder embedded in a code identifier matches', () => {
+    const known = ['[PERSON_1]'];
+    expect(findVariantMatches('getPERSON_1Invoice()', known)).toEqual([
+      { start: 3, end: 11, matchText: 'PERSON_1', canonical: '[PERSON_1]' },
+    ]);
+    expect(findVariantMatches('PERSON_1_total = 0', known)).toHaveLength(1);
+    expect(findVariantMatches('user_PERSON_1 = 0', known)).toHaveLength(1);
+  });
+
+  test('mangled forms are not matched when glued to identifier characters', () => {
+    const known = ['[PERSON_1]'];
+    expect(findVariantMatches('getperson_1Invoice', known)).toEqual([]);
+    expect(findVariantMatches('getPERSON1Invoice', known)).toEqual([]);
+  });
+
   test('type-suffix collision — GMAILEMAIL_1 does not match EMAIL_1', () => {
     const known = ['[EMAIL_1]'];
     expect(findVariantMatches('Send to GMAILEMAIL_1 now', known)).toEqual([]);

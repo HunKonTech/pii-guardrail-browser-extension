@@ -56,6 +56,9 @@ fn precedence(span: &PiiSpan) -> u8 {
     match span.source {
         DetectionSource::Manual => 3,
         DetectionSource::Regex if is_authoritative_structured_type(span.entity_type) => 2,
+        // Regex passwords only come from explicit credential syntax in code
+        // (`password = ...`, `user:pass@host`), which outranks an NER guess.
+        DetectionSource::Regex if span.entity_type == EntityType::Password => 2,
         DetectionSource::Regex | DetectionSource::Ner => 1,
     }
 }
@@ -70,6 +73,7 @@ fn is_authoritative_structured_type(entity_type: EntityType) -> bool {
             | EntityType::Phone
             | EntityType::IpAddress
             | EntityType::Date
+            | EntityType::Secret
     )
 }
 

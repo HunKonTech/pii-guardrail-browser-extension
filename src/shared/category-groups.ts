@@ -15,9 +15,9 @@ export const GROUP_MEMBERS: Readonly<Record<GroupName, readonly EntityType[]>> =
   Identity: ['PERSON', 'USERNAME'],
   Contact: ['EMAIL', 'PHONE', 'ADDRESS'],
   Financial: ['CREDIT_CARD', 'IBAN', 'BANK_ACCOUNT', 'SSN'],
-  Network: ['IP_ADDRESS'],
+  Network: ['IP_ADDRESS', 'HOSTNAME'],
   Location: ['LOCATION'],
-  Password: ['PASSWORD'],
+  Password: ['PASSWORD', 'SECRET'],
   Organization: ['ORGANIZATION'],
   'Low-signal': ['URL', 'DATE', 'MISC'],
 };

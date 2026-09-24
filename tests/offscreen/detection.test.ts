@@ -65,6 +65,32 @@ describe('offscreen detection flow', () => {
     );
   });
 
+  test('code mode lets the model find names inside identifiers', async () => {
+    const text = [
+      'def getAdaLovelaceInvoice(ada_id):',
+      '    invoice = getAdaLovelaceInvoice(ada_id)',
+      '    return invoice',
+    ].join('\n');
+    const config = { ner_provider: 'fixture' as const, code_mode: 'secrets' as const };
+
+    await detectWithExternalNer(text, config);
+
+    const passed = (detectPii as jest.Mock).mock.calls[0][2];
+    const names = passed.filter((span: any) => span.entity_type === 'PERSON');
+    expect(names.map((span: any) => span.text)).toEqual(['AdaLovelace', 'AdaLovelace']);
+    for (const span of names) {
+      expect(Buffer.from(text).subarray(span.start, span.end).toString()).toBe('AdaLovelace');
+    }
+  });
+
+  test('code mode off keeps identifiers opaque to the model', async () => {
+    const text = 'def getAdaLovelaceInvoice(ada_id):\n    return ada_id';
+
+    await detectWithExternalNer(text, { ner_provider: 'fixture', code_mode: 'off' });
+
+    expect((detectPii as jest.Mock).mock.calls[0][2]).toEqual([]);
+  });
+
   test('off mode skips external NER candidates and forces regex-only config', async () => {
     const text = 'My name is Ada Lovelace.';
     const config = { ner_provider: 'off' as const, ner_enabled: true };

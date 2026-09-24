@@ -1,0 +1,5 @@
+work/
+extract-cs/bin/
+extract-cs/obj/
+extract-ts/node_modules/
+__pycache__/

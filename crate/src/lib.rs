@@ -1,4 +1,5 @@
 mod checksum;
+mod code;
 mod context;
 mod merger;
 mod ner;

@@ -30,6 +30,13 @@ describe('detection config from settings', () => {
     );
   });
 
+  test('passes the source-code mode through to the WASM pipeline', () => {
+    expect(detectionOptionsFromSettings(DEFAULT_SETTINGS).code_mode).toBe('secrets');
+    expect(
+      detectionOptionsFromSettings({ ...DEFAULT_SETTINGS, codeAnonymization: 'off' }).code_mode
+    ).toBe('off');
+  });
+
   test('defaults the WebGPU dtype to the persisted low-memory preference', () => {
     const config = detectionOptionsFromSettings(DEFAULT_SETTINGS);
 

@@ -33,7 +33,7 @@ import { PageStatusChip } from '../ui/page-status-chip/page-status-chip';
 import { chipReasonMessageForStatus, deriveChipReason } from '../shared/page-status-chip-reason';
 import { SYSTEM_CHECK_STORAGE_KEY } from '../shared/system-check-storage';
 import { attachDeAnonBanner, type AttachedBanner } from '../ui/banner/de-anon-banner';
-import { anonymize, anonymizeWithVault } from '../shared/anonymizer';
+import { anonymize, anonymizeWithVault, previewIdentifierRenames } from '../shared/anonymizer';
 import { EntityMap } from '../shared/entity-map';
 import {
   buildConversationScope,
@@ -743,6 +743,91 @@ function makePreviewResolverFactory(
   };
 }
 
+/** Whether pasted code should have its declared identifiers renamed. */
+function renameIdentifiersEnabled(): boolean {
+  return settings?.codeAnonymization === 'full';
+}
+
+/**
+ * Replace the approved spans (and, when switched on, rename the code's own
+ * identifiers), paste the result, and record what went into the page.
+ * Returns false when nothing changed, so the caller can paste the original.
+ */
+function pasteAnonymized(
+  originalText: string,
+  approvedSpans: PiiSpan[],
+  timings?: { totalMs: number },
+): boolean {
+  const options = { renameIdentifiers: renameIdentifiersEnabled() };
+  let anonymizedText: string;
+  let renamedIdentifiers: number;
+
+  if (settings.identityVaultEnabled) {
+    // Vault path — looks up existing identities, creates new
+    // records for first-time PII, writes back to storage so
+    // subsequent pastes (in any provider, any session) see the
+    // same canonical replacements.
+    const result = anonymizeWithVault(
+      originalText,
+      approvedSpans,
+      identityVault,
+      settings.defaultReplacementMode,
+      entityMap,
+      options,
+    );
+    entityMap = result.entityMap;
+    anonymizedText = result.text;
+    renamedIdentifiers = result.renamedIdentifiers;
+    identityVault = result.vaultData;
+    // Persist vault asynchronously — paste should not block on it.
+    saveIdentityVault(identityVault).catch((err) =>
+      console.error('[PG:content] vault save failed', err),
+    );
+  } else {
+    // Legacy path: per-conversation EntityMap only.
+    const result = anonymize(originalText, approvedSpans, entityMap, options);
+    entityMap = result.entityMap;
+    anonymizedText = result.text;
+    renamedIdentifiers = result.renamedIdentifiers;
+  }
+
+  if (anonymizedText === originalText) return false;
+
+  interceptor.pasteAnonymized(anonymizedText);
+
+  // Record what this session put into the page. The map may also hold
+  // entries restored from storage — on the shared "new chat" key those
+  // can belong to another tab's draft — and those are not ours to
+  // persist or file.
+  for (const [replacement] of entityMap.entries()) {
+    if (anonymizedText.includes(replacement)) {
+      sessionPlaceholders.add(replacement);
+    }
+  }
+
+  // The ledger just grew, so what may be resolved on this page grew
+  // with it — before anything has been written anywhere.
+  rebuildScope();
+  void recordEmittedTokens();
+
+  const parts = [];
+  if (approvedSpans.length > 0) parts.push(`${approvedSpans.length} item(s) replaced`);
+  if (renamedIdentifiers > 0) parts.push(`${renamedIdentifiers} identifier(s) renamed`);
+  showIndicator(`\u{1F512} ${parts.join(', ')}`, CHIP_FADE_MS);
+
+  if (settings.debug && timings) {
+    console.log(
+      `[PG:content] Detection: ${timings.totalMs}ms, anonymized ${approvedSpans.length} spans, renamed ${renamedIdentifiers} identifiers`,
+    );
+  }
+  return true;
+}
+
+/** Paste with only the code's identifiers renamed; false when there is nothing to rename. */
+function pasteWithRenamedIdentifiers(originalText: string): boolean {
+  return renameIdentifiersEnabled() && pasteAnonymized(originalText, []);
+}
+
 function showReviewOverlay(
   originalText: string,
   rawSpans: PiiSpan[],
@@ -751,7 +836,9 @@ function showReviewOverlay(
   const spans = prepareReviewSpans(originalText, rawSpans, settings, adaptiveThresholds);
 
   if (spans.length === 0) {
-    // After filtering, nothing left — paste original
+    // After filtering, nothing left — paste original, or the code with its
+    // identifiers renamed when that is switched on.
+    if (pasteWithRenamedIdentifiers(originalText)) return;
     showIndicator('\u2713 No actionable personal data found', NO_PII_INDICATOR_MS);
     interceptor.pasteOriginal(originalText);
     return;
@@ -763,62 +850,12 @@ function showReviewOverlay(
     {
       onConfirm: (approvedSpans: PiiSpan[]) => {
         if (approvedSpans.length === 0) {
+          if (pasteWithRenamedIdentifiers(originalText)) return;
           interceptor.pasteOriginal(originalText);
           return;
         }
-
-        let anonymizedText: string;
-
-        if (settings.identityVaultEnabled) {
-          // Vault path — looks up existing identities, creates new
-          // records for first-time PII, writes back to storage so
-          // subsequent pastes (in any provider, any session) see the
-          // same canonical replacements.
-          const result = anonymizeWithVault(
-            originalText,
-            approvedSpans,
-            identityVault,
-            settings.defaultReplacementMode,
-            entityMap,
-          );
-          entityMap = result.entityMap;
-          anonymizedText = result.text;
-          identityVault = result.vaultData;
-          // Persist vault asynchronously — paste should not block on it.
-          saveIdentityVault(identityVault).catch((err) =>
-            console.error('[PG:content] vault save failed', err),
-          );
-        } else {
-          // Legacy path: per-conversation EntityMap only.
-          const result = anonymize(originalText, approvedSpans, entityMap);
-          entityMap = result.entityMap;
-          anonymizedText = result.text;
-        }
-
-        interceptor.pasteAnonymized(anonymizedText);
-
-        // Record what this session put into the page. The map may also hold
-        // entries restored from storage — on the shared "new chat" key those
-        // can belong to another tab's draft — and those are not ours to
-        // persist or file.
-        for (const [replacement] of entityMap.entries()) {
-          if (anonymizedText.includes(replacement)) {
-            sessionPlaceholders.add(replacement);
-          }
-        }
-
-        // The ledger just grew, so what may be resolved on this page grew
-        // with it — before anything has been written anywhere.
-        rebuildScope();
-        void recordEmittedTokens();
-
-        showIndicator(
-          `\u{1F512} ${approvedSpans.length} item(s) replaced`,
-          CHIP_FADE_MS,
-        );
-
-        if (settings.debug && timings) {
-          console.log(`[PG:content] Detection: ${timings.totalMs}ms, anonymized ${approvedSpans.length} spans`);
+        if (!pasteAnonymized(originalText, approvedSpans, timings)) {
+          interceptor.pasteOriginal(originalText);
         }
       },
 
@@ -881,6 +918,13 @@ function showReviewOverlay(
     settings.identityVaultEnabled
       ? makePreviewResolverFactory(identityVault, settings.defaultReplacementMode)
       : undefined,
+    renameIdentifiersEnabled()
+      ? (approved) =>
+          previewIdentifierRenames(originalText, approved, {
+            entityMap,
+            vaultData: settings.identityVaultEnabled ? identityVault : undefined,
+          })
+      : undefined,
   );
 
   overlay.show();
@@ -931,6 +975,7 @@ const interceptor = new PasteInterceptor(adapter, {
   onNoPii: (text) => {
     scanningIndicator?.stop();
     scanningIndicator = null;
+    if (pasteWithRenamedIdentifiers(text)) return;
     showIndicator('\u2713 No personal data found', NO_PII_INDICATOR_MS);
     interceptor.pasteOriginal(text);
   },

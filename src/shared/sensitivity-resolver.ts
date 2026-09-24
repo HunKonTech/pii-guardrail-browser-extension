@@ -12,6 +12,7 @@ interface CategoryThreshold {
 // Slider at 0.5 → threshold = baseline
 export const CATEGORY_THRESHOLDS: Record<EntityType, CategoryThreshold> = {
   PASSWORD:     { baseline: 0.70, delta: 0.05 }, // barely shifts — tight by design
+  SECRET:       { baseline: 0.70, delta: 0.05 }, // regex-only, high-precision shapes
   CREDIT_CARD:  { baseline: 0.50, delta: 0.15 },
   SSN:          { baseline: 0.50, delta: 0.15 },
   IBAN:         { baseline: 0.50, delta: 0.15 },
@@ -22,6 +23,8 @@ export const CATEGORY_THRESHOLDS: Record<EntityType, CategoryThreshold> = {
   PERSON:       { baseline: 0.50, delta: 0.20 },
   USERNAME:     { baseline: 0.50, delta: 0.20 },
   IP_ADDRESS:   { baseline: 0.50, delta: 0.20 },
+  HOSTNAME:     { baseline: 0.50, delta: 0.20 },
+  IDENTIFIER:   { baseline: 0.50, delta: 0.20 }, // never detected; renamed after review
   LOCATION:     { baseline: 0.50, delta: 0.20 },
   ORGANIZATION: { baseline: 0.50, delta: 0.20 },
   URL:          { baseline: 0.50, delta: 0.30 }, // loose — shifts a lot

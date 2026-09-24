@@ -3,6 +3,7 @@ import type {
   AllowlistEntry,
   BlocklistEntry,
   CancelDetectionBehavior,
+  CodeAnonymizationMode,
   EntityType,
   GroupName,
   LocalAiUnloadTimeoutMs,
@@ -14,6 +15,7 @@ import type {
   SystemCompatibilityStatus,
   SystemCompatibilityStatusResponse,
 } from '../shared/message-types';
+import { SEARCH_ENGINE_ORIGINS } from '../shared/search-engines';
 import { GROUP_NAMES } from '../shared/category-groups';
 import { findConflictingPattern } from '../shared/list-conflicts';
 import {
@@ -78,6 +80,9 @@ export type OptionsModel = {
 
   setCancelDetectionBehavior: (value: CancelDetectionBehavior) => Promise<void>;
   setSkipCodeBlocks: (value: boolean) => Promise<void>;
+  setCodeAnonymization: (value: CodeAnonymizationMode) => Promise<void>;
+  /** Resolves false when the user declines the browser's permission prompt. */
+  setSearchProtectionEnabled: (value: boolean) => Promise<boolean>;
 
   setDebug: (value: boolean) => Promise<void>;
   applyDebugSystemCheckScenario: (scenario: DebugSystemCheckScenario) => Promise<void>;
@@ -388,6 +393,18 @@ export function createOptionsModel(): OptionsModel {
 
     setCancelDetectionBehavior: (value) => saveAndBroadcast({ cancelDetectionBehavior: value }),
     setSkipCodeBlocks: (value) => saveAndBroadcast({ skipCodeBlocks: value }),
+    setCodeAnonymization: (value) => saveAndBroadcast({ codeAnonymization: value }),
+    setSearchProtectionEnabled: async (value) => {
+      const origins = [...SEARCH_ENGINE_ORIGINS];
+      if (value) {
+        // Must be the first await: the prompt is only allowed inside the click.
+        const granted = await chrome.permissions.request({ origins });
+        if (!granted) return false;
+      }
+      await saveAndBroadcast({ searchProtectionEnabled: value });
+      if (!value) await chrome.permissions.remove({ origins }).catch(() => false);
+      return true;
+    },
 
     setDebug: (value) => saveAndBroadcast({ debug: value }),
     applyDebugSystemCheckScenario: async (scenario) => {

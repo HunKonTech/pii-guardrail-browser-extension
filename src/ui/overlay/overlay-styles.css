@@ -427,6 +427,12 @@
   border-bottom-color: var(--color-group-low-signal-fg);
 }
 
+.pg-highlight-identifier {
+  background-color: var(--color-group-low-signal-bg);
+  color: var(--color-group-low-signal-fg);
+  border-bottom-color: var(--color-group-low-signal-fg);
+}
+
 .pg-entity-type-label {
   background: rgb(34 197 94 / 14%);
   color: #15803d;

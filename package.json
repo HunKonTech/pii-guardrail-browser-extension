@@ -24,6 +24,7 @@
     "validate:release-strict": "node scripts/validate.js release-strict",
     "package:release": "node scripts/package-release.js release",
     "package:dry-run": "node scripts/package-release.js dry-run",
+    "package:edge": "node scripts/edge/build-edge.js",
     "test": "jest --config jest.config.js",
     "test:e2e:live": "node scripts/run-live-e2e.js",
     "test:e2e:harness": "playwright test --config e2e/live/playwright.harness.config.ts",

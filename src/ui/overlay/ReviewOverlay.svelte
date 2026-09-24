@@ -17,7 +17,7 @@
   // Model is created once and passed in as a stable reference for the
   // overlay's lifetime, so destructuring its store fields is safe.
   // svelte-ignore state_referenced_locally
-  const { totalCount, enabledCount, highlightedHtml, previewText, confidenceThreshold, selectedSnippet, dismissMenu, spanStates } = model;
+  const { totalCount, enabledCount, renamedCount, highlightedHtml, previewText, confidenceThreshold, selectedSnippet, dismissMenu, spanStates } = model;
 
   function toggleSpanByIndex(index: number) {
     const current = $spanStates[index];
@@ -69,7 +69,7 @@
       <TextTabs
         highlightedHtml={$highlightedHtml}
         previewText={$previewText}
-        replacedCount={$enabledCount}
+        replacedCount={$enabledCount + $renamedCount}
         onToggleSpan={toggleSpanByIndex}
       />
 
@@ -107,7 +107,7 @@
         >Paste original</button>
       </div>
       <div class="pg-footer-right">
-        <span class="pg-footer-summary">Replacing {$enabledCount} of {$totalCount} items</span>
+        <span class="pg-footer-summary">Replacing {$enabledCount} of {$totalCount} items{#if $renamedCount > 0}, renaming {$renamedCount} identifiers{/if}</span>
         <button
           type="button"
           class="pg-btn pg-btn-primary"
