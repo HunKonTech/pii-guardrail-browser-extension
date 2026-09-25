@@ -56,7 +56,13 @@ def restore_csharp(path: Path) -> None:
     if shutil.which("dotnet") is None:
         print("  ! dotnet not found, skipping restore", flush=True)
         return
-    solutions = sorted(path.rglob("*.sln")) + sorted(path.rglob("*.slnx"))
+    # The solution nearest the root is the main one (eShop: eShop.slnx, not
+    # src/ClientApp/ClientApp.sln). Restore errors in single projects (e.g. a
+    # MAUI project without the workload) only cost those projects' packages.
+    solutions = sorted(
+        [*path.rglob("*.sln"), *path.rglob("*.slnx")],
+        key=lambda p: (len(p.relative_to(path).parts), p.suffix != ".slnx", str(p)),
+    )
     targets = solutions[:1] if solutions else sorted(path.rglob("*.csproj"))
     # A global.json pinning an SDK that is not installed fails the restore.
     # Nothing is built, so any installed SDK will do: set it aside meanwhile.
