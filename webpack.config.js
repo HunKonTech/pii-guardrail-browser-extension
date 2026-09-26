@@ -8,6 +8,7 @@ const {
   getNerAssetCopyPatterns,
 } = require('./scripts/extension-packaging');
 const { renderTermsHtml } = require('./scripts/terms-html');
+const { buildManifestVersion } = require('./scripts/build-number');
 
 class TermsHtmlPlugin {
   constructor(options = {}) {
@@ -36,6 +37,11 @@ class TermsHtmlPlugin {
 module.exports = (_env = {}) => {
   const requirePreparedModel =
     process.env.NER_MODEL_ASSETS_REQUIRED === '1' || _env.requireNerModelAssets === true;
+  const manifestVersion = buildManifestVersion(
+    JSON.parse(require('fs').readFileSync(path.join(__dirname, 'manifest.json'), 'utf8')).version,
+    __dirname,
+  );
+  console.log(`[build] manifest version ${manifestVersion}`);
 
   return {
     entry: {
@@ -133,7 +139,15 @@ module.exports = (_env = {}) => {
       // Copy static files to dist/
       new CopyPlugin({
         patterns: [
-          { from: 'manifest.json', to: '.' },
+          {
+            from: 'manifest.json',
+            to: '.',
+            transform: (content) => {
+              const manifest = JSON.parse(content.toString());
+              manifest.version = manifestVersion;
+              return `${JSON.stringify(manifest, null, 2)}\n`;
+            },
+          },
           { from: 'LICENSE', to: '.' },
           { from: 'NOTICE', to: '.' },
           { from: 'TERMS.md', to: '.' },

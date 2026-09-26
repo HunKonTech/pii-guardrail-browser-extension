@@ -33,6 +33,19 @@ const IDENTIFIER_RE = /[A-Za-z_$][A-Za-z0-9_$]*/g;
 const IDENTIFIER_CHAR_RE = /[\p{L}\p{N}_$]/u;
 const IDENTIFIER_TEXT_RE = /^[\p{L}\p{N}_$]+$/u;
 
+/**
+ * One line that is unmistakably code on its own: a code operator or call
+ * together with a keyword start or a code line ending, as in
+ * `public string? Name => first ?? last;`. A lone keyword or `;` is not
+ * enough — prose has those too.
+ */
+function isStrongCodeLine(line: string): boolean {
+  const trimmed = line.trim();
+  const hasCodeToken = CODE_LINE_OPERATOR_RE.test(trimmed) || CODE_LINE_CALL_RE.test(trimmed);
+  const hasCodeFrame = CODE_LINE_KEYWORD_RE.test(trimmed) || CODE_LINE_END_RE.test(trimmed);
+  return hasCodeToken && hasCodeFrame;
+}
+
 function isCodeLine(line: string): boolean {
   const trimmed = line.trim();
   if (trimmed === '') return false;
@@ -47,7 +60,7 @@ function isCodeLine(line: string): boolean {
 /**
  * Fenced / `<pre>` regions plus runs of unfenced lines that look like code.
  * A run needs at least two code-looking lines — or one line holding several
- * statements; blank lines and indented continuation lines inside a run do
+ * statements, or one unmistakable code line; blank lines and indented continuation lines inside a run do
  * not break it.
  */
 export function findCodeLikeRegions(text: string): CodeRegion[] {
@@ -68,7 +81,7 @@ export function findCodeLikeRegions(text: string): CodeRegion[] {
     if (isCodeLine(line)) {
       if (runStart === -1) runStart = offset;
       runEnd = lineEnd;
-      runCodeLines += isMultiStatementLine(line) ? 2 : 1;
+      runCodeLines += isMultiStatementLine(line) || isStrongCodeLine(line) ? 2 : 1;
     } else if (runStart !== -1 && line.trim() !== '' && !/^\s/.test(line)) {
       closeRun();
     }

@@ -51,6 +51,15 @@ describe('findCodeLikeRegions', () => {
     expect(findCodeLikeRegions('I paid 5; she paid 6;')).toEqual([]);
   });
 
+  test('finds one unmistakable code line', () => {
+    const line = 'public string? Description => (L.IsHu ? DescriptionHu : DescriptionEn) ?? DescriptionEn ?? DescriptionHu; }';
+    expect(findCodeLikeRegions(line)).toEqual([{ start: 0, end: line.length }]);
+  });
+
+  test('leaves one line of prose with a keyword and semicolon alone', () => {
+    expect(findCodeLikeRegions('if you can, return it by Friday;')).toEqual([]);
+  });
+
   test('still includes fenced blocks', () => {
     const text = 'see\n```\nhello\n```';
     expect(findCodeLikeRegions(text)).toEqual([{ start: 4, end: text.length }]);

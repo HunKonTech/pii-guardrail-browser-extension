@@ -162,12 +162,19 @@ hf upload koncsik/code-identifier-classifier \
 
 Only the int8 `onnx/model_quantized.onnx` is used at runtime; the 330 MB float export is left out.
 
-Fetch and prepare on another machine (logged in with a read token):
+On another machine (logged in with a read token via `hf auth login`), just run:
 
 ```bash
-hf download koncsik/code-identifier-classifier \
-  --local-dir .model-sources/code-identifier-classifier
+npm run prepare:model:identifier-classifier
+```
 
+With no `--source-dir`, the script downloads `koncsik/code-identifier-classifier` from Hugging
+Face automatically (into `.model-sources/code-identifier-classifier`) and stages it into
+`generated/models/identifier-classifier`. If that output already exists it does nothing; pass
+`--force` to re-download and refresh it. To use a local export instead of Hugging Face, pass
+`--source-dir` explicitly, same as before:
+
+```bash
 npm run prepare:model:identifier-classifier -- \
   --source-dir .model-sources/code-identifier-classifier \
   --force

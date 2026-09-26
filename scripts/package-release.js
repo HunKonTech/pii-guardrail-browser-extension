@@ -205,7 +205,7 @@ function createReleasePackage(options = {}) {
     runStep('WASM release build', npmCommand(), ['run', 'build:wasm'], { cwd: rootDir });
     runStep('Extension build with required BardsAI assets', npmCommand(), ['run', 'build:ext'], {
       cwd: rootDir,
-      env: { NER_MODEL_ASSETS_REQUIRED: '1' },
+      env: { NER_MODEL_ASSETS_REQUIRED: '1', PG_RELEASE_BUILD: '1' },
     });
   }
 

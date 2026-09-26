@@ -35,6 +35,7 @@ import { SYSTEM_CHECK_STORAGE_KEY } from '../shared/system-check-storage';
 import { attachDeAnonBanner, type AttachedBanner } from '../ui/banner/de-anon-banner';
 import { anonymize, anonymizeWithVault, previewIdentifierRenames } from '../shared/anonymizer';
 import { extractCodeRegionTexts } from '../shared/code-rename';
+import { findCodeLikeRegions } from '../shared/code-identifiers';
 import type { IdentifierVerdict } from '../shared/identifier-classifier-constants';
 import type { ClassifyIdentifiersResponse } from '../shared/message-types';
 import { EntityMap } from '../shared/entity-map';
@@ -864,6 +865,17 @@ async function pasteAnonymized(
   return true;
 }
 
+/**
+ * The "nothing found" chip. Pasted code whose identifiers stay as they are
+ * because renaming is switched off says so, rather than reading as a miss.
+ */
+function noPiiIndicatorText(text: string): string {
+  if (!renameIdentifiersEnabled() && findCodeLikeRegions(text).length > 0) {
+    return '\u2713 No personal data found \u00b7 code kept as is (turn on "Rename code identifiers" in Options \u2192 Code blocks)';
+  }
+  return '\u2713 No personal data found';
+}
+
 /** Paste with only the code's identifiers renamed; false when there is nothing to rename. */
 async function pasteWithRenamedIdentifiers(originalText: string): Promise<boolean> {
   return renameIdentifiersEnabled() && (await pasteAnonymized(originalText, []));
@@ -1018,7 +1030,7 @@ const interceptor = new PasteInterceptor(adapter, {
     scanningIndicator = null;
     void (async () => {
       if (await pasteWithRenamedIdentifiers(text)) return;
-      showIndicator('\u2713 No personal data found', NO_PII_INDICATOR_MS);
+      showIndicator(noPiiIndicatorText(text), NO_PII_INDICATOR_MS);
       interceptor.pasteOriginal(text);
     })();
   },
