@@ -34,6 +34,9 @@ import { chipReasonMessageForStatus, deriveChipReason } from '../shared/page-sta
 import { SYSTEM_CHECK_STORAGE_KEY } from '../shared/system-check-storage';
 import { attachDeAnonBanner, type AttachedBanner } from '../ui/banner/de-anon-banner';
 import { anonymize, anonymizeWithVault, previewIdentifierRenames } from '../shared/anonymizer';
+import { extractCodeRegionTexts } from '../shared/code-rename';
+import type { IdentifierVerdict } from '../shared/identifier-classifier-constants';
+import type { ClassifyIdentifiersResponse } from '../shared/message-types';
 import { EntityMap } from '../shared/entity-map';
 import {
   buildConversationScope,
@@ -748,17 +751,55 @@ function renameIdentifiersEnabled(): boolean {
   return settings?.codeAnonymization === 'full';
 }
 
+let classifyRequestCounter = 0;
+
+/**
+ * Asks the offscreen identifier-classifier model whether `originalText`'s
+ * undeclared code identifiers are OWN or LIB names. Best-effort: any
+ * failure (model unavailable, background unreachable, no code regions)
+ * resolves to `undefined`, and the caller falls back to the hardcoded
+ * library-name list via `code-rename.ts`'s own default.
+ */
+async function classifyCodeIdentifiers(
+  originalText: string,
+): Promise<ReadonlyMap<string, IdentifierVerdict> | undefined> {
+  const texts = extractCodeRegionTexts(originalText);
+  if (texts.length === 0) return undefined;
+
+  try {
+    const requestId = `identifiers-${Date.now()}-${classifyRequestCounter++}`;
+    const response = (await chrome.runtime.sendMessage({
+      type: 'CLASSIFY_IDENTIFIERS',
+      payload: { requestId, texts },
+    })) as ClassifyIdentifiersResponse | undefined;
+
+    if (!response || response.type !== 'IDENTIFIER_CLASSIFICATION_RESULT' || !response.payload.available) {
+      return undefined;
+    }
+    return new Map(response.payload.classifications.map((c) => [c.name, c.label]));
+  } catch (err) {
+    if (settings?.debug) {
+      console.warn('[PG:content] Identifier classification unavailable, using library-name list', err);
+    }
+    return undefined;
+  }
+}
+
 /**
  * Replace the approved spans (and, when switched on, rename the code's own
  * identifiers), paste the result, and record what went into the page.
  * Returns false when nothing changed, so the caller can paste the original.
  */
-function pasteAnonymized(
+async function pasteAnonymized(
   originalText: string,
   approvedSpans: PiiSpan[],
   timings?: { totalMs: number },
-): boolean {
-  const options = { renameIdentifiers: renameIdentifiersEnabled() };
+): Promise<boolean> {
+  const renameIdentifiers = renameIdentifiersEnabled();
+  const identifierClassifications = renameIdentifiers
+    ? await classifyCodeIdentifiers(originalText)
+    : undefined;
+  const options = { renameIdentifiers, identifierClassifications };
   let anonymizedText: string;
   let renamedIdentifiers: number;
 
@@ -824,21 +865,21 @@ function pasteAnonymized(
 }
 
 /** Paste with only the code's identifiers renamed; false when there is nothing to rename. */
-function pasteWithRenamedIdentifiers(originalText: string): boolean {
-  return renameIdentifiersEnabled() && pasteAnonymized(originalText, []);
+async function pasteWithRenamedIdentifiers(originalText: string): Promise<boolean> {
+  return renameIdentifiersEnabled() && (await pasteAnonymized(originalText, []));
 }
 
-function showReviewOverlay(
+async function showReviewOverlay(
   originalText: string,
   rawSpans: PiiSpan[],
   timings?: { totalMs: number },
-): void {
+): Promise<void> {
   const spans = prepareReviewSpans(originalText, rawSpans, settings, adaptiveThresholds);
 
   if (spans.length === 0) {
     // After filtering, nothing left — paste original, or the code with its
     // identifiers renamed when that is switched on.
-    if (pasteWithRenamedIdentifiers(originalText)) return;
+    if (await pasteWithRenamedIdentifiers(originalText)) return;
     showIndicator('\u2713 No actionable personal data found', NO_PII_INDICATOR_MS);
     interceptor.pasteOriginal(originalText);
     return;
@@ -848,13 +889,13 @@ function showReviewOverlay(
     originalText,
     spans,
     {
-      onConfirm: (approvedSpans: PiiSpan[]) => {
+      onConfirm: async (approvedSpans: PiiSpan[]) => {
         if (approvedSpans.length === 0) {
-          if (pasteWithRenamedIdentifiers(originalText)) return;
+          if (await pasteWithRenamedIdentifiers(originalText)) return;
           interceptor.pasteOriginal(originalText);
           return;
         }
-        if (!pasteAnonymized(originalText, approvedSpans, timings)) {
+        if (!(await pasteAnonymized(originalText, approvedSpans, timings))) {
           interceptor.pasteOriginal(originalText);
         }
       },
@@ -975,15 +1016,17 @@ const interceptor = new PasteInterceptor(adapter, {
   onNoPii: (text) => {
     scanningIndicator?.stop();
     scanningIndicator = null;
-    if (pasteWithRenamedIdentifiers(text)) return;
-    showIndicator('\u2713 No personal data found', NO_PII_INDICATOR_MS);
-    interceptor.pasteOriginal(text);
+    void (async () => {
+      if (await pasteWithRenamedIdentifiers(text)) return;
+      showIndicator('\u2713 No personal data found', NO_PII_INDICATOR_MS);
+      interceptor.pasteOriginal(text);
+    })();
   },
 
   onPiiDetected: (text, spans, timings) => {
     scanningIndicator?.stop();
     scanningIndicator = null;
-    showReviewOverlay(text, spans, timings);
+    void showReviewOverlay(text, spans, timings);
   },
 
   onError: (error) => {

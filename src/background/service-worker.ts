@@ -1,5 +1,7 @@
 import type {
   CancelDetectionRequest,
+  ClassifyIdentifiersRequest,
+  ClassifyIdentifiersResponse,
   DetectPiiRequest,
   DetectionCanceledResponse,
   GetNerStatusRequest,
@@ -430,6 +432,7 @@ function isBackgroundRequest(message: Message): boolean {
   return message.type === "DETECT_PII"
     || message.type === "CANCEL_DETECTION"
     || message.type === "GET_NER_STATUS"
+    || message.type === "CLASSIFY_IDENTIFIERS"
     || message.type === "LOG_FEEDBACK"
     || message.type === "OPEN_OPTIONS_PAGE"
     || message.type === "GET_SYSTEM_COMPATIBILITY_STATUS"
@@ -514,6 +517,23 @@ async function handleMessage(
             err instanceof Error ? err.message : String(err),
           ),
         } satisfies NerStatusResponse);
+      }
+      break;
+    }
+
+    case "CLASSIFY_IDENTIFIERS": {
+      const request: ClassifyIdentifiersRequest = message;
+      try {
+        const response: ClassifyIdentifiersResponse = await withOffscreenOperation(() => chrome.runtime.sendMessage(request));
+        sendResponse(response);
+      } catch (err) {
+        // Best-effort feature — a failed round trip just means the caller
+        // falls back to the hardcoded library-name list, not an error state.
+        sendResponse({
+          type: "IDENTIFIER_CLASSIFICATION_RESULT",
+          payload: { requestId: message.payload.requestId, classifications: [], available: false },
+          error: err instanceof Error ? err.message : String(err),
+        } satisfies ClassifyIdentifiersResponse);
       }
       break;
     }

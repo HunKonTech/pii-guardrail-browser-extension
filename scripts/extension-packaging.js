@@ -14,6 +14,20 @@ const PACKAGED_ONNX_RUNTIME_DIR = 'vendor/onnxruntime-web';
 const ACTIVE_PREPARED_MODEL_SOURCE_DIR = PREPARED_BARDSAI_MODEL_SOURCE_DIR;
 const ACTIVE_PACKAGED_MODEL_DIR = PACKAGED_BARDSAI_MODEL_DIR;
 
+// Separate from the NER model above: there is only ever one identifier-
+// classifier model (no picker), and it is always optional — a missing build
+// simply means renameIdentifiers falls back to the hardcoded LIBRARY_NAMES
+// list, never a build failure.
+const PREPARED_IDENTIFIER_CLASSIFIER_SOURCE_DIR = path.join('generated', 'models', 'identifier-classifier');
+const PACKAGED_IDENTIFIER_CLASSIFIER_DIR = 'models/identifier-classifier';
+const REQUIRED_IDENTIFIER_CLASSIFIER_ASSETS = [
+  'config.json',
+  'tokenizer.json',
+  'tokenizer_config.json',
+  path.join('onnx', 'model_quantized.onnx'),
+];
+const EXCLUDED_IDENTIFIER_CLASSIFIER_ASSET_GLOBS = ['**/manifest.json', '**/model.onnx'];
+
 const REQUIRED_MODEL_ASSETS = [
   'config.json',
   'tokenizer.json',
@@ -66,6 +80,14 @@ function missingPreparedModelAssets(rootDir = process.cwd()) {
   }).map(toPosixPath);
 }
 
+function missingIdentifierClassifierAssets(rootDir = process.cwd()) {
+  const sourceRoot = resolveFromRoot(rootDir, PREPARED_IDENTIFIER_CLASSIFIER_SOURCE_DIR);
+  return REQUIRED_IDENTIFIER_CLASSIFIER_ASSETS.filter((relativePath) => {
+    const candidate = path.join(sourceRoot, relativePath);
+    return !fs.existsSync(candidate) || !fs.statSync(candidate).isFile();
+  }).map(toPosixPath);
+}
+
 function missingOnnxRuntimeAssets(rootDir = process.cwd()) {
   const runtimeRoot = resolveFromRoot(rootDir, path.join('node_modules', 'onnxruntime-web', 'dist'));
   return ONNX_RUNTIME_ASSETS.filter((fileName) => {
@@ -90,6 +112,12 @@ function getNerAssetCopyPatterns(rootDir = process.cwd()) {
       noErrorOnMissing: true,
       globOptions: { ignore: EXCLUDED_MODEL_ASSET_GLOBS },
     },
+    {
+      from: resolveFromRoot(rootDir, PREPARED_IDENTIFIER_CLASSIFIER_SOURCE_DIR),
+      to: PACKAGED_IDENTIFIER_CLASSIFIER_DIR,
+      noErrorOnMissing: true,
+      globOptions: { ignore: EXCLUDED_IDENTIFIER_CLASSIFIER_ASSET_GLOBS },
+    },
     ...ONNX_RUNTIME_ASSETS.map((fileName) => ({
       from: resolveFromRoot(rootDir, path.join('node_modules', 'onnxruntime-web', 'dist', fileName)),
       to: `${PACKAGED_ONNX_RUNTIME_DIR}/[name][ext]`,
@@ -112,21 +140,34 @@ class LocalNerAssetsPlugin {
         );
       }
 
-      const missingModelAssets = missingPreparedModelAssets(this.rootDir);
-      if (missingModelAssets.length === 0) return;
-
-      const message = modelAssetStatusMessage(missingModelAssets);
-      if (this.requirePreparedModel) {
-        throw new Error(message);
-      }
-
       const logger = compiler.getInfrastructureLogger
         ? compiler.getInfrastructureLogger('LocalNerAssetsPlugin')
         : null;
-      if (logger && typeof logger.warn === 'function') {
-        logger.warn(message);
-      } else {
-        console.warn(message);
+      const warn = (message) => {
+        if (logger && typeof logger.warn === 'function') logger.warn(message);
+        else console.warn(message);
+      };
+
+      const missingModelAssets = missingPreparedModelAssets(this.rootDir);
+      if (missingModelAssets.length > 0) {
+        const message = modelAssetStatusMessage(missingModelAssets);
+        if (this.requirePreparedModel) {
+          throw new Error(message);
+        }
+        warn(message);
+      }
+
+      // Always optional — a missing build just means renameIdentifiers falls
+      // back to the hardcoded LIBRARY_NAMES list, never a required asset.
+      const missingClassifierAssets = missingIdentifierClassifierAssets(this.rootDir);
+      if (missingClassifierAssets.length > 0) {
+        warn(
+          [
+            'Prepared code-identifier-classifier model assets are missing, so renameIdentifiers will use the',
+            `hardcoded library-name list only. Missing from ${PREPARED_IDENTIFIER_CLASSIFIER_SOURCE_DIR}: ${missingClassifierAssets.join(', ')}.`,
+            'Run `npm run prepare:model:identifier-classifier -- --source-dir <dir>` before building to package it.',
+          ].join(' '),
+        );
       }
     };
 
@@ -139,15 +180,20 @@ module.exports = {
   ACTIVE_PACKAGED_MODEL_DIR,
   ACTIVE_PREPARED_MODEL_SOURCE_DIR,
   EXCLUDED_MODEL_ASSET_GLOBS,
+  EXCLUDED_IDENTIFIER_CLASSIFIER_ASSET_GLOBS,
   LocalNerAssetsPlugin,
   ONNX_RUNTIME_ASSETS,
   PACKAGED_BARDSAI_MODEL_DIR,
+  PACKAGED_IDENTIFIER_CLASSIFIER_DIR,
   PACKAGED_MODEL_DIR,
   PACKAGED_ONNX_RUNTIME_DIR,
   PREPARED_BARDSAI_MODEL_SOURCE_DIR,
+  PREPARED_IDENTIFIER_CLASSIFIER_SOURCE_DIR,
   PREPARED_MODEL_SOURCE_DIR,
+  REQUIRED_IDENTIFIER_CLASSIFIER_ASSETS,
   REQUIRED_MODEL_ASSETS,
   getNerAssetCopyPatterns,
+  missingIdentifierClassifierAssets,
   missingOnnxRuntimeAssets,
   missingPreparedModelAssets,
   modelAssetStatusMessage,

@@ -3,6 +3,7 @@ import { EntityMap } from './entity-map';
 import { byteOffsetToStringIndex } from './text-offsets';
 import { bareIdentifierPlaceholder, createIdentifierPositionCheck } from './code-identifiers';
 import { aliasFor, IDENTIFIER_ALIAS_RE, planIdentifierRenames, type IdentifierRole } from './code-rename';
+import type { IdentifierVerdict } from './identifier-classifier-constants';
 import {
   type IdentityVaultData,
   type IdentityRecord,
@@ -18,6 +19,13 @@ export interface AnonymizeOptions {
    * `alma.nev` → `var1.field2`), the same way everywhere in the text.
    */
   renameIdentifiers?: boolean;
+  /**
+   * OWN/LIB verdicts from the identifier-classifier model for this paste's
+   * undeclared names, fetched by the caller before calling `anonymize` /
+   * `anonymizeWithVault`. Falls back to the hardcoded library-name list for
+   * any name it doesn't cover (including when omitted entirely).
+   */
+  identifierClassifications?: ReadonlyMap<string, IdentifierVerdict>;
 }
 
 export interface AnonymizeResult {
@@ -88,8 +96,9 @@ function identifierReplacements(
   spanRanges: readonly Replacement[],
   resolveAlias: AliasResolver,
   knownNames: Iterable<string>,
+  classifications?: ReadonlyMap<string, IdentifierVerdict>,
 ): { replacements: Replacement[]; renamed: number } {
-  const plan = planIdentifierRenames(originalText, { knownNames });
+  const plan = planIdentifierRenames(originalText, { knownNames, classifications });
   const blocked = new Set<string>();
   for (const occurrence of plan.occurrences) {
     if (spanRanges.some((span) => occurrence.start < span.end && occurrence.end > span.start)) {
@@ -191,6 +200,10 @@ export function previewIdentifierRenames(
         vaultAliasedNames(vaultData, entityMap),
       )
     : identifierReplacements(originalText, spanRanges, entityMapAliases(entityMap), entityMapAliasedNames(entityMap));
+  // Preview is best-effort and stays synchronous (it re-runs on every span
+  // toggle in the review overlay); it always uses the lexical LIBRARY_NAMES
+  // fallback rather than awaiting the classifier. The actual paste (below)
+  // uses the classifier when available.
   return replacements.map(({ start, end, text }) => ({ start, end, alias: text }));
 }
 
@@ -240,6 +253,7 @@ export function anonymize(
       replacements,
       entityMapAliases(entityMap),
       entityMapAliasedNames(entityMap),
+      options.identifierClassifications,
     );
     replacements.push(...renames.replacements);
     renamedIdentifiers = renames.renamed;
@@ -319,6 +333,7 @@ export function anonymizeWithVault(
       replacements,
       vaultAliases(vaultData, entityMap, recordsTouched),
       vaultAliasedNames(vaultData, entityMap),
+      options.identifierClassifications,
     );
     replacements.push(...renames.replacements);
     renamedIdentifiers = renames.renamed;

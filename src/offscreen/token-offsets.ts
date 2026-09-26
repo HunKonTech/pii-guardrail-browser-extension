@@ -3,11 +3,14 @@
  *
  * Transformers.js leaves 'start' / 'end' undefined, so predictions are placed by
  * aligning the tokenizer's own pieces against the source. Handles Metaspace ('▁'
- * on word-initial pieces) and WordPiece ('##' on continuations); the WordPiece
- * checkpoints are '-uncased', so matching folds case and accents.
+ * on word-initial pieces, used by sentencepiece/XLM-R style tokenizers), byte-level
+ * BPE ('Ġ' on word-initial pieces, used by RoBERTa/GPT-2/CodeBERTa style
+ * tokenizers — functionally the same boundary marker, different character), and
+ * WordPiece ('##' on continuations); the WordPiece checkpoints are '-uncased', so
+ * matching folds case and accents.
  */
 
-const METASPACE = '▁';
+const METASPACE_CHARS = ['▁', 'Ġ'] as const;
 const WORDPIECE_CONTINUATION = '##';
 
 /** How far to scan forward when a piece does not match at the cursor. */
@@ -74,9 +77,19 @@ function foldPiece(piece: string): string {
 
 type TokenizerStyle = 'metaspace' | 'wordpiece';
 
+/** Which metaspace character this tokenizer's pieces use, if any. */
+function detectMetaspaceChar(tokens: readonly string[]): string | null {
+  for (const token of tokens) {
+    for (const candidate of METASPACE_CHARS) {
+      if (token.startsWith(candidate)) return candidate;
+    }
+  }
+  return null;
+}
+
 function detectStyle(tokens: readonly string[]): TokenizerStyle {
   for (const token of tokens) {
-    if (token.startsWith(METASPACE)) return 'metaspace';
+    if (detectMetaspaceChar([token])) return 'metaspace';
     if (token.startsWith(WORDPIECE_CONTINUATION)) return 'wordpiece';
   }
   return 'metaspace';
@@ -88,18 +101,19 @@ interface PieceShape {
 }
 
 /**
- * Metaspace pieces can contain '▁' internally: the normalizer rewrites runs of two
- * or more spaces to a literal '▁', so '▁a▁b' is "boundary, a, spaces, b".
+ * Metaspace pieces can contain the marker internally: the normalizer rewrites
+ * runs of two or more spaces to a literal marker, so '▁a▁b' (or 'Ġa Ġb' for
+ * byte-BPE) is "boundary, a, spaces, b".
  */
-function pieceShape(token: string, style: TokenizerStyle): PieceShape {
+function pieceShape(token: string, style: TokenizerStyle, metaspaceChar: string): PieceShape {
   if (style === 'wordpiece') {
     return token.startsWith(WORDPIECE_CONTINUATION)
       ? { segments: [token.slice(WORDPIECE_CONTINUATION.length)], boundaryBefore: false }
       : { segments: [token], boundaryBefore: true };
   }
 
-  const boundaryBefore = token.startsWith(METASPACE);
-  const segments = token.split(METASPACE).filter((segment) => segment.length > 0);
+  const boundaryBefore = token.startsWith(metaspaceChar);
+  const segments = token.split(metaspaceChar).filter((segment) => segment.length > 0);
   return { segments, boundaryBefore };
 }
 
@@ -155,6 +169,7 @@ export function alignTokensToText(
 ): (TokenCharRange | null)[] {
   const specialTokens = new Set(DEFAULT_SPECIAL_TOKENS);
   const style = detectStyle(tokens);
+  const metaspaceChar = detectMetaspaceChar(tokens) ?? METASPACE_CHARS[0];
   const foldedText = foldText(text);
 
   const foldedStartBySource: number[] = new Array(text.length + 1).fill(-1);
@@ -187,7 +202,7 @@ export function alignTokensToText(
       continue;
     }
 
-    const { segments, boundaryBefore } = pieceShape(token, style);
+    const { segments, boundaryBefore } = pieceShape(token, style, metaspaceChar);
     if (segments.length === 0) {
       // Whitespace, not content: consume it but emit no range.
       if (boundaryBefore) cursor = skipWhitespace(text, cursor);
@@ -244,7 +259,7 @@ export function alignmentCoverage(
   let placed = 0;
   ranges.forEach((range, index) => {
     // Null by design; counting it as a failure would push short text under the gate.
-    if (specialTokens.has(tokens[index]) || /^▁+$/.test(tokens[index])) return;
+    if (specialTokens.has(tokens[index]) || /^[▁Ġ]+$/.test(tokens[index])) return;
     content += 1;
     if (range) placed += 1;
   });

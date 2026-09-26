@@ -92,6 +92,8 @@
         "offscreen/offscreen.html",
         "models/ner/bardsai-eu-pii-anonimization-multilang/*",
         "models/ner/bardsai-eu-pii-anonimization-multilang/onnx/*",
+        "models/identifier-classifier/*",
+        "models/identifier-classifier/onnx/*",
         "vendor/onnxruntime-web/*"
       ],
       "matches": [

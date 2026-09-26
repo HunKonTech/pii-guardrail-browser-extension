@@ -1,4 +1,5 @@
-import { aliasFor, planIdentifierRenames } from '../../src/shared/code-rename';
+import { aliasFor, extractCodeRegionTexts, planIdentifierRenames } from '../../src/shared/code-rename';
+import type { IdentifierVerdict } from '../../src/shared/identifier-classifier-constants';
 
 function renamedNames(text: string): Record<string, string> {
   const plan = planIdentifierRenames(text);
@@ -148,6 +149,41 @@ describe('planIdentifierRenames — TypeScript', () => {
 describe('planIdentifierRenames — prose', () => {
   test('text that is not code renames nothing', () => {
     expect(renamedOccurrences('Anna asked whether alma = apple in Hungarian.')).toEqual([]);
+  });
+});
+
+describe('planIdentifierRenames — classifications option', () => {
+  const SNIPPET = 'def run():\n    helper(myThing)\n    print(myThing)\n';
+
+  test('falls back to LIBRARY_NAMES when no classifications are given', () => {
+    const names = renamedNames(SNIPPET);
+    expect(names).toHaveProperty('helper');
+    expect(names).toHaveProperty('myThing');
+    expect(names).not.toHaveProperty('print');
+  });
+
+  test('classifier verdicts override LIBRARY_NAMES membership for names it has an opinion on', () => {
+    const classifications = new Map<string, IdentifierVerdict>([
+      ['helper', 'LIB'],
+      ['print', 'OWN'],
+    ]);
+    const plan = planIdentifierRenames(SNIPPET, { classifications });
+    const names = Object.fromEntries(plan.roles);
+
+    expect(names).not.toHaveProperty('helper'); // model says LIB, though absent from LIBRARY_NAMES
+    expect(names).toHaveProperty('myThing'); // untouched by the map, still renamed by default
+    expect(names).toHaveProperty('print'); // model says OWN, overriding the hardcoded list
+  });
+});
+
+describe('extractCodeRegionTexts', () => {
+  test('returns the trimmed body of each fenced code block, fence markers stripped', () => {
+    const text = 'Before.\n```python\nprint(alma)\n```\nAfter.';
+    expect(extractCodeRegionTexts(text)).toEqual(['print(alma)\n']);
+  });
+
+  test('returns nothing for prose with no code regions', () => {
+    expect(extractCodeRegionTexts('Just a sentence about alma the variable.')).toEqual([]);
   });
 });
 

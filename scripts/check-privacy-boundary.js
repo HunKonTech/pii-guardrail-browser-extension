@@ -20,6 +20,12 @@ const ALLOWED_RUNTIME_FINDINGS = [
     snippet: "fetch(url, { method: 'HEAD' })",
     reason: 'local extension asset existence check for packaged model/runtime files',
   },
+  {
+    file: 'src/offscreen/identifier-classifier-provider.ts',
+    id: 'fetch',
+    snippet: "fetch(url, { method: 'HEAD' })",
+    reason: 'local extension asset existence check for packaged model/runtime files',
+  },
 ];
 
 const FORBIDDEN_PACKAGE_NAME_PATTERNS = [

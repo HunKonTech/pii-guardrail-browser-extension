@@ -1,5 +1,6 @@
 import { findCodeLikeRegions } from './code-identifiers';
 import type { CodeRegion } from './code-region-finder';
+import type { IdentifierVerdict } from './identifier-classifier-constants';
 
 /**
  * Consistent renaming of a pasted snippet's own identifiers: the names it
@@ -359,9 +360,23 @@ class Analyzer {
   readonly roles = new Map<string, IdentifierRole>();
   readonly external = new Set<string>();
   private readonly overrides = new Set<string>();
+  private readonly classifications?: ReadonlyMap<string, IdentifierVerdict>;
 
-  constructor(tokens: readonly Token[]) {
+  constructor(tokens: readonly Token[], classifications?: ReadonlyMap<string, IdentifierVerdict>) {
     this.code = significant(tokens);
+    this.classifications = classifications;
+  }
+
+  /**
+   * Whether an undeclared name is a library/framework name. Consults the
+   * identifier-classifier model's verdict first (when it had an opinion on
+   * this exact name); falls back to the hardcoded `LIBRARY_NAMES` list when
+   * the model is unavailable or did not see this name.
+   */
+  private isLibraryName(name: string): boolean {
+    const verdict = this.classifications?.get(name);
+    if (verdict) return verdict === 'LIB';
+    return LIBRARY_NAMES.has(name);
   }
 
   /** Index of the previous non-newline token. */
@@ -630,7 +645,7 @@ class Analyzer {
       if (!current || ROLE_PRIORITY[role] > ROLE_PRIORITY[current]) used.set(name, role);
     };
     const candidate = (token: Token) =>
-      isName(token) && !this.roles.has(token.text) && !LIBRARY_NAMES.has(token.text) && !this.excluded(token.text);
+      isName(token) && !this.roles.has(token.text) && !this.isLibraryName(token.text) && !this.excluded(token.text);
 
     for (let i = 0; i < this.code.length; i += 1) {
       const token = this.code[i];
@@ -758,6 +773,32 @@ export interface RenamePlanOptions {
    * this snippet only uses them, so a name keeps one alias throughout.
    */
   knownNames?: Iterable<string>;
+  /**
+   * OWN/LIB verdicts from the identifier-classifier model, keyed by exact
+   * name. Only consulted for undeclared (used-but-not-declared) names — the
+   * snippet's own declarations are always renamed regardless. A name absent
+   * from the map falls back to the hardcoded `LIBRARY_NAMES` list, so a
+   * missing or unavailable model degrades to the previous behaviour.
+   */
+  classifications?: ReadonlyMap<string, IdentifierVerdict>;
+}
+
+/** Matches every identifier-shaped word in a text, code or comment. */
+export const IDENTIFIER_WORD_RE = /[\p{L}_$][\p{L}\p{N}_$]*/gu;
+
+/**
+ * The trimmed text of every code-like region in `text` (fenced ``` markers
+ * stripped) — the same regions and bodies `planIdentifierRenames` analyses.
+ * Used to build the identifier-classifier model's input: it needs the
+ * surrounding code as context, not isolated names.
+ */
+export function extractCodeRegionTexts(text: string, regions?: CodeRegion[]): string[] {
+  return (regions ?? findCodeLikeRegions(text))
+    .map((region) => {
+      const body = codeBody(text, region);
+      return text.slice(body.start, body.end);
+    })
+    .filter((body) => body.trim().length > 0);
 }
 
 /**
@@ -774,7 +815,7 @@ export function planIdentifierRenames(text: string, options: RenamePlanOptions =
     lexer.tokens.push({ kind: 'newline', start: body.end, end: body.end, text: '\n' });
   }
 
-  const analyzer = new Analyzer(lexer.tokens);
+  const analyzer = new Analyzer(lexer.tokens, options.classifications);
   analyzer.analyze();
 
   const roles = new Map<string, IdentifierRole>();

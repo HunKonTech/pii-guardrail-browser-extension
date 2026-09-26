@@ -1,5 +1,7 @@
 import type {
   CancelDetectionRequest,
+  ClassifyIdentifiersRequest,
+  ClassifyIdentifiersResponse,
   DetectPiiRequest,
   DetectionCanceledResponse,
   GetNerStatusRequest,
@@ -10,8 +12,11 @@ import type {
 } from '../shared/message-types';
 import { debugLog, initDebugFlag } from './debug';
 import { detectWithExternalNer, getNerStatus } from './detection';
+import { createIdentifierClassifierProvider } from './identifier-classifier-provider';
 
 initDebugFlag();
+
+const identifierClassifier = createIdentifierClassifierProvider();
 
 const activeDetections = new Map<string, AbortController>();
 const canceledDetections = new Set<string>();
@@ -57,6 +62,35 @@ chrome.runtime.onMessage.addListener(
       };
       sendResponse(response);
       return false;
+    }
+
+    if (message.type === 'CLASSIFY_IDENTIFIERS') {
+      const { requestId, texts } = (message as ClassifyIdentifiersRequest).payload;
+      const abortController = new AbortController();
+
+      identifierClassifier
+        .classify(texts, abortController.signal)
+        .then(({ classifications, available }) => {
+          const response: ClassifyIdentifiersResponse = {
+            type: 'IDENTIFIER_CLASSIFICATION_RESULT',
+            payload: {
+              requestId,
+              classifications: [...classifications].map(([name, label]) => ({ name, label })),
+              available,
+            },
+          };
+          sendResponse(response);
+        })
+        .catch((err) => {
+          console.error('[PG:offscreen] Identifier classification error:', err);
+          sendResponse({
+            type: 'IDENTIFIER_CLASSIFICATION_RESULT',
+            payload: { requestId, classifications: [], available: false },
+            error: err instanceof Error ? err.message : String(err),
+          } satisfies ClassifyIdentifiersResponse);
+        });
+
+      return true; // keep channel open for async response
     }
 
     if (message.type !== 'DETECT_PII') return false;

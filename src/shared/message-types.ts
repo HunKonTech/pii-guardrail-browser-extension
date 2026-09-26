@@ -402,6 +402,38 @@ export interface GetPageProtectionStateRequest {
 }
 
 /**
+ * Ask the offscreen document's identifier-classifier model whether each of
+ * `texts` (code regions from a paste) contains OWN or LIB identifiers.
+ * Best-effort: the caller falls back to the hardcoded library-name list for
+ * any name the response doesn't cover, so a missing/unavailable model is not
+ * an error condition for this request.
+ */
+export interface ClassifyIdentifiersRequest {
+  type: 'CLASSIFY_IDENTIFIERS';
+  payload: {
+    requestId: string;
+    /** Code region texts to classify, in context (not isolated names). */
+    texts: string[];
+  };
+}
+
+export interface IdentifierClassification {
+  name: string;
+  label: 'OWN' | 'LIB';
+}
+
+export interface ClassifyIdentifiersResponse {
+  type: 'IDENTIFIER_CLASSIFICATION_RESULT';
+  payload: {
+    requestId: string;
+    classifications: IdentifierClassification[];
+    /** False when the model could not be loaded; the list is then always empty. */
+    available: boolean;
+  };
+  error?: string;
+}
+
+/**
  * How a supported page's message box was last found.
  *
  * `adapter` is the intended case. `generic` means the site's markup no longer
@@ -442,4 +474,6 @@ export type Message =
   | ReRunSystemCheckRequest
   | ApplyCriticalRecommendationRequest
   | GetPageProtectionStateRequest
-  | PageProtectionStateResponse;
+  | PageProtectionStateResponse
+  | ClassifyIdentifiersRequest
+  | ClassifyIdentifiersResponse;

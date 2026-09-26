@@ -7,8 +7,12 @@ const {
   ACTIVE_PREPARED_MODEL_SOURCE_DIR,
   LocalNerAssetsPlugin,
   ONNX_RUNTIME_ASSETS,
+  PACKAGED_IDENTIFIER_CLASSIFIER_DIR,
   PACKAGED_ONNX_RUNTIME_DIR,
+  PREPARED_IDENTIFIER_CLASSIFIER_SOURCE_DIR,
+  REQUIRED_IDENTIFIER_CLASSIFIER_ASSETS,
   getNerAssetCopyPatterns,
+  missingIdentifierClassifierAssets,
   missingOnnxRuntimeAssets,
   missingPreparedModelAssets,
   modelAssetStatusMessage,
@@ -26,6 +30,13 @@ function writePreparedModel(root) {
   writeFile(path.join(modelRoot, 'tokenizer_config.json'), '{}\n');
   writeFile(path.join(modelRoot, 'onnx', 'model_q4f16.onnx'), 'q4f16');
   writeFile(path.join(modelRoot, 'onnx', 'model_q4f16.onnx.data'), 'q4f16-data');
+}
+
+function writePreparedIdentifierClassifierModel(root) {
+  const modelRoot = path.join(root, PREPARED_IDENTIFIER_CLASSIFIER_SOURCE_DIR);
+  for (const relativePath of REQUIRED_IDENTIFIER_CLASSIFIER_ASSETS) {
+    writeFile(path.join(modelRoot, relativePath), 'fixture');
+  }
 }
 
 function writeOnnxRuntime(root) {
@@ -88,6 +99,14 @@ describe('extension NER asset packaging', () => {
     expect(missingPreparedModelAssets(tempRoot)).toEqual([]);
   });
 
+  test('detects whether prepared identifier-classifier model assets are complete', () => {
+    expect(missingIdentifierClassifierAssets(tempRoot)).toEqual(REQUIRED_IDENTIFIER_CLASSIFIER_ASSETS.map((p) => p.split(path.sep).join('/')));
+
+    writePreparedIdentifierClassifierModel(tempRoot);
+
+    expect(missingIdentifierClassifierAssets(tempRoot)).toEqual([]);
+  });
+
   test('returns copy patterns matching the transformer provider resource paths', () => {
     const patterns = getNerAssetCopyPatterns(tempRoot);
     const runtimeFile = (name) =>
@@ -115,6 +134,11 @@ describe('extension NER asset packaging', () => {
               '**/model_quantized.onnx',
             ],
           },
+        }),
+        expect.objectContaining({
+          from: path.join(tempRoot, PREPARED_IDENTIFIER_CLASSIFIER_SOURCE_DIR),
+          to: PACKAGED_IDENTIFIER_CLASSIFIER_DIR,
+          noErrorOnMissing: true,
         }),
         runtimeFile('ort-wasm-simd-threaded.mjs'),
         runtimeFile('ort-wasm-simd-threaded.wasm'),
@@ -195,6 +219,9 @@ describe('extension NER asset packaging', () => {
 
   test('warns about missing prepared model assets by default', () => {
     writeOnnxRuntime(tempRoot);
+    // Isolate this test to the NER-model warning; the identifier-classifier
+    // model is covered separately below.
+    writePreparedIdentifierClassifierModel(tempRoot);
     const compiler = createCompiler();
     const plugin = new LocalNerAssetsPlugin({ rootDir: tempRoot });
 
@@ -206,8 +233,35 @@ describe('extension NER asset packaging', () => {
     expect(compiler.warnings[0]).toContain('npm run prepare:model:bardsai');
   });
 
+  test('warns about missing prepared identifier-classifier model assets by default', () => {
+    writeOnnxRuntime(tempRoot);
+    writePreparedModel(tempRoot);
+    const compiler = createCompiler();
+    const plugin = new LocalNerAssetsPlugin({ rootDir: tempRoot });
+
+    plugin.apply(compiler);
+    compiler.runHook('beforeRun');
+
+    expect(compiler.warnings).toHaveLength(1);
+    expect(compiler.warnings[0]).toContain('code-identifier-classifier model assets are missing');
+    expect(compiler.warnings[0]).toContain('npm run prepare:model:identifier-classifier');
+  });
+
+  test('never throws for a missing identifier-classifier model, even with requirePreparedModel', () => {
+    writeOnnxRuntime(tempRoot);
+    writePreparedModel(tempRoot);
+    const compiler = createCompiler();
+    const plugin = new LocalNerAssetsPlugin({ rootDir: tempRoot, requirePreparedModel: true });
+
+    plugin.apply(compiler);
+
+    expect(() => compiler.runHook('beforeRun')).not.toThrow();
+    expect(compiler.warnings).toHaveLength(1);
+  });
+
   test('fails when prepared model assets are required', () => {
     writeOnnxRuntime(tempRoot);
+    writePreparedIdentifierClassifierModel(tempRoot);
     const compiler = createCompiler();
     const plugin = new LocalNerAssetsPlugin({
       rootDir: tempRoot,
@@ -233,6 +287,7 @@ describe('extension NER asset packaging', () => {
 
   test('does not warn when model and runtime assets are present', () => {
     writePreparedModel(tempRoot);
+    writePreparedIdentifierClassifierModel(tempRoot);
     writeOnnxRuntime(tempRoot);
     const compiler = createCompiler();
     const plugin = new LocalNerAssetsPlugin({ rootDir: tempRoot });

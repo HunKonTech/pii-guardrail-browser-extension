@@ -11,6 +11,7 @@
     "prepare:model:ai4privacy": "node scripts/prepare-ai4privacy-model.js",
     "prepare:model:bardsai": "node scripts/prepare-bardsai-model.js",
     "prepare:model:hikmaai": "node scripts/prepare-hikmaai-model.js",
+    "prepare:model:identifier-classifier": "node scripts/prepare-identifier-classifier-model.js",
     "convert:model:fp16": "node scripts/convert-source-models-to-fp16.js",
     "convert:model:fp16:bardsai": "node scripts/convert-source-models-to-fp16.js --model bardsai",
     "convert:model:fp16:hikmaai": "node scripts/convert-source-models-to-fp16.js --model hikmaai",
